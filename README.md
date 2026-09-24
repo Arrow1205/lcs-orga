@@ -10,7 +10,7 @@ Le bouton **LCS 2026** en haut à droite ouvre la liste des années et **Ajouter
 - **Contacts** est le seul onglet métier commun : un ajout, une modification ou une suppression y est visible depuis toutes les années.
 - Une nouvelle année ne copie aucune fiche. Tarifs, capacités, budget, responsables et prévisionnel repartent à zéro. Les quatre types de zones et les règles par défaut sont disponibles pour la configuration.
 - Exposants, partenaires, tâches, communication, déco, idées, assets, factures, réglages et prévisionnel sont isolés par année.
-- Le prévisionnel de l'édition N est affiché comme **Prévisionnel N+1**. Son contenu appartient à N et n'est pas transféré automatiquement vers l'édition suivante.
+- L’onglet est intitulé **Prévisionnel**, sans année dans son libellé. Son contenu appartient à N et n'est pas transféré automatiquement vers l'édition suivante.
 - Les anciennes éditions restent consultables et modifiables par les membres ayant le droit d'écrire. Elles ne sont pas figées en lecture seule.
 - Changer d'année demande d'avoir fermé la fiche ouverte et terminé la synchronisation.
 
