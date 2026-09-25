@@ -105,3 +105,19 @@ test('Bilan : stockage annuel, historique, idempotence et droits',async()=>{
   await assert.rejects(db.exec('delete from crm_ledger_entries'),e=>e.code==='42501');
  }finally{await db.close();}
 });
+test('Planning animations : isolé par année, conservé et protégé',async()=>{
+ const db=await setup(null);
+ try{
+  await db.exec(sql);await db.exec(editionsSQL);
+  await db.exec(await readFile(new URL('../supabase/migrations/004_bilan.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/005_animations.sql',import.meta.url),'utf8'));
+  const row={id:'show',title:'Live Whatnot',day:'2026-10-03',start:'09:00',end:'10:30',owner:'Alice',partnerId:'p',note:'Accueil'};
+  await db.query('select crm_apply_changes($1,$2,$3,2026)',[wid,crypto.randomUUID(),JSON.stringify([{entity:'animations',id:'show',before:null,after:row}])]);
+  const year=async y=>(await db.query('select crm_read_records($1,$2) state',[wid,y])).rows[0].state.data;
+  assert.deepEqual((await year(2026)).animations,[row]);
+  await db.query('select crm_create_edition($1,2027)',[wid]);assert.deepEqual((await year(2027)).animations,[]);
+  await db.exec("update crm_members set role='viewer'; set role authenticated;");
+  assert.equal((await year(2026)).animations.length,1);
+  await assert.rejects(db.query('delete from crm_animations'),e=>e.code==='42501');
+ }finally{await db.close();}
+});

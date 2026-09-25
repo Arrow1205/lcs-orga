@@ -104,3 +104,13 @@ uniquement dans le nouveau solde, jamais dans le résultat ventes moins dépense
 Les lignes se déplacent entre rubriques d'une même colonne par glisser-déposer
 ou par le sélecteur Rubrique sur mobile. Les données bénéficient des mêmes
 droits d'accès, sauvegardes par fiche et historiques que les autres modules.
+
+
+### Planning animations (migration 005)
+Après 004_bilan.sql, exécuter une fois `supabase/migrations/005_animations.sql`
+dans Supabase, puis recharger l’application. Chaque année conserve son propre
+programme. La vue couvre une seule journée choisie, de 08:00 à 20:00. Une
+animation contient un nom, des heures de début et fin, un responsable issu
+des Réglages, un partenaire facultatif, un prestataire libre et un commentaire.
+Les créneaux simultanés sont disposés côte à côte. Sans migration, l’onglet
+affiche les instructions d’activation et les autres pages restent disponibles.

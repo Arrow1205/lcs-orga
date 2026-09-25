@@ -1,4 +1,4 @@
-export const collectionNames=['exhibitors','contacts','partners','tasks','posts','expenses','ideas','assets','invoices','zones','ledger_entries','ledger_categories'];
+export const collectionNames=['exhibitors','contacts','partners','tasks','posts','expenses','ideas','assets','invoices','zones','ledger_entries','ledger_categories','animations'];
 const stable=value=>JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
 export function splitRecords(state){
  const rows=new Map();

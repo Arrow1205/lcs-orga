@@ -58,6 +58,16 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  document.querySelector('[data-row-edit^="expenses:"]').click();exp=document.getElementById('editForm');exp.querySelector('[name="removeAttachment"]').checked=true;
  exp.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));assert.equal(api.getState().expenses[0].attachments.length,1);
  globalThis.FormData=NativeFormData;
+ const program=api.getState();program.animations=[];api.replaceState(program);
+ document.querySelector('[data-view="animations"]').click();
+ assert.equal(document.querySelectorAll('.animation-hour').length,13);
+ document.querySelector('[data-animation-slot="09:00"]').click();
+ let animation=document.getElementById('editForm');assert.equal(animation.elements.start.value,'09:00');
+ animation.elements.title.value='Animation basket';animation.elements.owner.value='';
+ animation.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));
+ assert.equal(api.getState().animations.length,1);assert.match(document.querySelector('.animation-event').textContent,/Animation basket/);
+ document.querySelector('.animation-event').click();animation=document.getElementById('editForm');animation.elements.end.value='11:00';animation.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));
+ assert.equal(api.getState().animations[0].end,'11:00');
  document.querySelector('[data-view="settings"]').click();assert.ok(document.querySelector('#accountSettings'));assert.ok(!document.querySelector('#refreshCloud'));assert.ok(!document.querySelector('.side-bottom'));
  dom.window.close();
 });
