@@ -24,7 +24,7 @@ function protectViewer(){if(role!=='viewer')return;
  document.addEventListener('submit',e=>{if(root.contains(e.target)){e.preventDefault();e.stopImmediatePropagation();}},true);
  new MutationObserver(refresh).observe(root,{childList:true,subtree:true});refresh();
 }
-function placeAccount(){const bar=$('cloudBar'),host=matchMedia('(max-width:720px)').matches?$('mobileNav'):$('accountDesktop');const controls=$('sidebarControls');if(controls){if(matchMedia('(max-width:720px)').matches)$('mobileNav').append(controls);else document.querySelector('.side').insertBefore(controls,$('accountDesktop'));}if(bar&&host&&bar.parentElement!==host)host.append(bar);}
+function placeAccount(){const bar=$('cloudBar'),host=$('accountSettings')||$('accountDesktop');const controls=$('sidebarControls');if(controls){if(matchMedia('(max-width:720px)').matches)$('mobileNav').append(controls);else document.querySelector('.side').insertBefore(controls,$('accountDesktop'));}if(bar&&host&&bar.parentElement!==host)host.append(bar);}
 window.addEventListener('resize',placeAccount);
 function login(message=''){
  $('loginScreen').hidden=false;$('crmRoot').hidden=true;$('cloudBar').hidden=true;
@@ -54,7 +54,7 @@ async function boot(){
   canLeave:()=>{if(sync?.dirty||busy||$('overlay').innerHTML){alert('Enregistre ou ferme la fiche ouverte et attends la fin de la synchronisation avant de changer d’année.');return false;}return true;},
   onCreate:async year=>{busy=true;try{const {error}=await client.rpc('crm_create_edition',{p_workspace:workspaceId,p_year:year});if(error)throw error;selectYear(year);}finally{busy=false;}}
  });
- document.querySelector('.side-bottom').textContent='ÉDITION '+editionYear+' · Espace de pilotage';
+
  $('loginScreen').hidden=true;$('crmRoot').hidden=false;$('cloudBar').hidden=false;$('cloudUser').textContent=`${session.user.email} · ${role==='viewer'?'Lecture seule':role==='admin'?'Administrateur':'Éditeur'}`;
  const draftPrefix='lcs-v2-draft:'+workspaceId+':'+userId+':'+editionYear+':',draftKey=draftPrefix+crypto.randomUUID();
  sync=new RecordSync({initial,write:async(request,changes)=>{const {data:next,error}=await client.rpc('crm_apply_changes',{p_workspace:workspaceId,p_request:request,p_changes:changes,p_year:editionYear});if(error)throw error;return next;},onStatus:status,onError:recovery,
@@ -72,8 +72,8 @@ async function boot(){
  };
  protectViewer();api=startCRM(initial.data,backend);status('À jour');
  $('logoutCloud').onclick=async()=>{if(sync.dirty||busy){alert('Termine la synchronisation ou télécharge ta copie avant de te déconnecter.');return;}clearInterval(poll);await client.auth.signOut();location.reload();};
- $('refreshCloud').onclick=()=>{if(!sync.dirty&&!busy)location.reload();};
- poll=setInterval(async()=>{if(sync.dirty||busy||document.hidden)return;try{const next=await loadState();if(sync.dirty||busy)return;if(Number(next.revision)===sync.revision&&!sync.refreshNeeded)return;if(!$('overlay').innerHTML&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName||'')){if(!sync.accept(next))return;api.replaceState(next.data);status('Actualisé');}else{$('refreshCloud').hidden=false;status('Une mise à jour est disponible');}}catch{status('Connexion à vérifier');}},15000);
+
+ poll=setInterval(async()=>{if(sync.dirty||busy||document.hidden)return;try{const next=await loadState();if(sync.dirty||busy)return;if(Number(next.revision)===sync.revision&&!sync.refreshNeeded)return;if(!$('overlay').innerHTML&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName||'')){if(!sync.accept(next))return;api.replaceState(next.data);status('Actualisé');}else{status('Une mise à jour est disponible');}}catch{status('Connexion à vérifier');}},15000);
  window.addEventListener('beforeunload',e=>{if(sync.dirty||busy){e.preventDefault();e.returnValue='';}});
 }
 if(!url||!key){$('loginScreen').innerHTML='<div class="login-card"><h1>Configuration manquante</h1><p>Ajouter VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY puis relancer le build.</p></div>';}else{

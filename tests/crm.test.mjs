@@ -38,5 +38,26 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  document.querySelector('[data-view="invoices"]').click();assert.match(document.querySelector('tbody').textContent,/Facture test/);assert.doesNotMatch(document.querySelector('tbody').textContent,/Devis test/);
  document.querySelector('[data-invoice-tab="Devis"]').click();assert.match(document.querySelector('tbody').textContent,/Devis test/);
  document.querySelector('[data-add="invoices"]').click();assert.equal(document.getElementById('editForm').elements.tag.value,'Devis');
+
+ document.querySelector('.close').click();
+ document.querySelector('[data-view="partners"]').click();document.querySelector('[data-add="partners"]').click();
+ let pform=document.getElementById('editForm');pform.elements.name.value='Alex Martin';pform.elements.name.dispatchEvent(new Event('change',{bubbles:true}));assert.equal(pform.elements.company.value,'Test Société');
+ const NativeFormData=globalThis.FormData;let uploads={};
+ globalThis.FormData=class extends NativeFormData{constructor(form){super(form);for(const [key,files] of Object.entries(uploads)){this.delete(key);for(const file of files)this.append(key,file);}}};
+ uploads={partnerInvoiceUpload:[new dom.window.File(['pdf'],'partenaire.pdf',{type:'application/pdf'})]};
+ pform.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));uploads={};
+ const partnerId=api.getState().partners[0].id;assert.equal(api.getState().invoices.filter(x=>x.partnerId===partnerId).length,1);
+ document.querySelector('[data-view="exhibitors"]').click();document.querySelector('[data-exhibitor-tab="partners"]').click();document.querySelector('[data-row-edit="partners:'+partnerId+'"]').click();
+ assert.match(document.querySelector('#overlay').textContent,/Facture · Test Société/);document.querySelector('.close').click();
+ document.querySelector('[data-view="expenses"]').click();document.querySelector('#mobileToggle').click();document.querySelector('[data-add="expenses"]').click();
+ assert.equal(document.querySelector('#mobileToggle').hidden,true);assert.equal(document.querySelector('#mobileToggle').getAttribute('aria-expanded'),'false');
+ let exp=document.getElementById('editForm');exp.elements.title.value='Signalétique';exp.elements.receivedDate.value='2026-09-30';exp.elements.status.value='En impression';
+ uploads={attachmentsUpload:[new dom.window.File(['pdf'],'plan.pdf',{type:'application/pdf'}),new dom.window.File(['image'],'visuel.png',{type:'image/png'})]};
+ exp.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));uploads={};
+ assert.equal(api.getState().expenses[0].attachments.length,2);assert.equal(api.getState().expenses[0].receivedDate,'2026-09-30');assert.equal(api.getState().expenses[0].status,'En impression');
+ document.querySelector('[data-row-edit^="expenses:"]').click();exp=document.getElementById('editForm');exp.querySelector('[name="removeAttachment"]').checked=true;
+ exp.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));assert.equal(api.getState().expenses[0].attachments.length,1);
+ globalThis.FormData=NativeFormData;
+ document.querySelector('[data-view="settings"]').click();assert.ok(document.querySelector('#accountSettings'));assert.ok(!document.querySelector('#refreshCloud'));assert.ok(!document.querySelector('.side-bottom'));
  dom.window.close();
 });
