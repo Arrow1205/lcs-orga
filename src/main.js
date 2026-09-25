@@ -24,6 +24,8 @@ function protectViewer(){if(role!=='viewer')return;
  document.addEventListener('submit',e=>{if(root.contains(e.target)){e.preventDefault();e.stopImmediatePropagation();}},true);
  new MutationObserver(refresh).observe(root,{childList:true,subtree:true});refresh();
 }
+function placeAccount(){const bar=$('cloudBar'),host=matchMedia('(max-width:720px)').matches?$('mobileNav'):$('accountDesktop');const controls=$('sidebarControls');if(controls){if(matchMedia('(max-width:720px)').matches)$('mobileNav').append(controls);else document.querySelector('.side').insertBefore(controls,$('accountDesktop'));}if(bar&&host&&bar.parentElement!==host)host.append(bar);}
+window.addEventListener('resize',placeAccount);
 function login(message=''){
  $('loginScreen').hidden=false;$('crmRoot').hidden=true;$('cloudBar').hidden=true;
  $('loginScreen').innerHTML='<form class="login-card" id="loginForm"><h1>Lille Card Show</h1><p>Connecte-toi à l’espace de l’équipe.</p><label>Email<input name="email" type="email" autocomplete="username" required></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" required></label><button>Se connecter</button><p id="loginMessage"></p><button type="button" id="resetPassword">Mot de passe oublié</button></form>';
@@ -64,7 +66,7 @@ async function boot(){
  }
 
  const storage=client.storage.from('lcs-private');
- const backend={year:editionYear,save(data){if(role==='viewer'){status('Lecture seule');return;}sync.enqueue(data);},
+ const backend={year:editionYear,role,placeAccount,save(data){if(role==='viewer'){status('Lecture seule');return;}sync.enqueue(data);},
   async putBlob(id,blob){if(role==='viewer')throw Error('Lecture seule');if(blob.size>50*1024*1024)throw Error('Maximum 50 Mo par fichier');const {error}=await storage.upload(`${workspaceId}/${id}`,blob,{upsert:false,contentType:blob.type||'application/octet-stream'});if(error)throw error;},
   async getBlob(id){const {data,error}=await storage.download(`${workspaceId}/${id}`);if(error)throw error;return data;}
  };

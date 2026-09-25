@@ -89,3 +89,18 @@ Les tests exécutent la migration SQL sur PostgreSQL embarqué (PGlite) avec des
 Les tests historiques de l'ancien import local restent des tests de non-régression ; cet import n'est plus accessible dans l'application.
 
 Les tables annuelles ont une clé `(workspace_id, edition_year, id)`. Les contacts gardent `(workspace_id, id)`. Les RPC exigent une année explicite ; l’historique et les réessais sont également rattachés à une année. Le script de sauvegarde exporte toutes les éditions.
+
+### Bilan (migration 004)
+Après les migrations 002 et 003, exécuter une seule fois
+`supabase/migrations/004_bilan.sql` dans le SQL Editor Supabase, puis recharger.
+Le Bilan reste désactivé avant cette migration ; les autres pages restent utilisables.
+
+Chaque année possède ses rubriques, ses lignes manuelles et son solde de départ
+Compte NC. Les factures de type **Facture** au statut **Payé** alimentent automatiquement
+les dépenses, une seule fois par facture ; leur montant suit la fiche source.
+Le reclassement conserve ce lien. Les devis et factures non payées sont exclus.
+Les ventes et autres dépenses se saisissent manuellement. Le Compte NC intervient
+uniquement dans le nouveau solde, jamais dans le résultat ventes moins dépenses.
+Les lignes se déplacent entre rubriques d'une même colonne par glisser-déposer
+ou par le sélecteur Rubrique sur mobile. Les données bénéficient des mêmes
+droits d'accès, sauvegardes par fiche et historiques que les autres modules.

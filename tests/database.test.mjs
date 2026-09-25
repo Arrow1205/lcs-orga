@@ -88,3 +88,20 @@ test('années isolées, contacts partagés, restauration et anciennes données c
   await assert.rejects(writeYear(2027,[]),e=>e.code==='42501');
  }finally{await db.close();}
 });
+test('Bilan : stockage annuel, historique, idempotence et droits',async()=>{
+ const db=await setup(null);
+ try{
+  await db.exec(sql);await db.exec(editionsSQL);await db.exec(await readFile(new URL('../supabase/migrations/004_bilan.sql',import.meta.url),'utf8'));
+  const change={entity:'ledger_entries',id:'line',before:null,after:{id:'line',title:'Salle',side:'expense',amountCents:12345,categoryId:'expense-other'}},request=crypto.randomUUID();
+  const write=changes=>db.query('select crm_apply_changes($1,$2,$3,2026)',[wid,request,JSON.stringify(changes)]);
+  await write([change]);await write([change]);
+  assert.equal((await db.query('select "amountCents" from crm_ledger_entries')).rows[0].amountCents,'12345');
+  assert.equal((await db.query("select count(*)::int n from crm_history where entity='ledger_entries'")).rows[0].n,1);
+  const readY=async year=>(await db.query('select crm_read_records($1,$2) state',[wid,year])).rows[0].state.data;
+  assert.deepEqual((await readY(2026)).ledger_entries,[change.after]);
+  await db.query('select crm_create_edition($1,2027)',[wid]);assert.deepEqual((await readY(2027)).ledger_entries,[]);assert.deepEqual((await readY(2027)).ledger_categories,[]);
+  await db.exec("update crm_members set role='viewer'; set role authenticated");
+  await assert.rejects(write([]),e=>e.code==='42501');
+  await assert.rejects(db.exec('delete from crm_ledger_entries'),e=>e.code==='42501');
+ }finally{await db.close();}
+});
