@@ -1,10 +1,10 @@
 export function mountEditions({host,years,selected,canCreate,onSelect,onCreate,canLeave=()=>true}){
  host.replaceChildren();host.className='edition-picker';
- const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='LCS '+selected+' ▾';summary.setAttribute('aria-label','Choisir une année, édition '+selected);details.append(summary);
+ const details=document.createElement('details'),summary=document.createElement('summary');summary.innerHTML='<span class="edition-year">'+selected+'</span><span class="edition-arrow" aria-hidden="true">⌄</span>';summary.setAttribute('aria-label','Choisir une année, édition '+selected);details.append(summary);
  const menu=document.createElement('div');menu.className='edition-menu';
  const label=document.createElement('p');label.textContent='Éditions du salon';menu.append(label);
  for(const year of [...years].sort((a,b)=>b-a)){
-  const button=document.createElement('button');button.type='button';button.className='edition-option';button.textContent='LCS '+year+(year===selected?' · sélectionnée':'');button.setAttribute('aria-pressed',String(year===selected));
+  const button=document.createElement('button');button.type='button';button.className='edition-option';button.textContent=String(year)+(year===selected?' · sélectionnée':'');button.setAttribute('aria-pressed',String(year===selected));
   button.onclick=()=>{if(year===selected){details.open=false;return;}if(canLeave()){details.open=false;onSelect(year);}};menu.append(button);
  }
  if(canCreate){

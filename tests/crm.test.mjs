@@ -16,7 +16,7 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  await new Promise(r=>setTimeout(r,0));
  assert.equal(saved.length,1);assert.equal(saved[0].tasks[0].title,'Test cloud');assert.equal(api.getState().tasks.length,1);
  assert.equal(dom.window.localStorage.getItem('lcs-crm-v1'),null);
- const remote=api.getState();remote.tasks[0].title='Autre membre';api.replaceState(remote);assert.match(document.getElementById('content').textContent,/Autre membre/);
+ const remote=api.getState();remote.tasks[0].title='Autre membre';api.replaceState(remote);assert.match(document.getElementById('content').textContent,/Autre membre/);const taskRow=document.querySelector('tr[data-row-edit^="tasks:"]');assert.equal(taskRow.tabIndex,0);taskRow.focus();taskRow.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));assert.ok(document.getElementById('editForm'));document.querySelector('.close').click();assert.ok(document.querySelector('header.top #editionPicker'));
 
  const state=api.getState();state.contacts=[{id:'c1',type:'Partenaire',company:'Test Société',first:'Alex',last:'Martin',email:'alex@example.test',phone:'0123456789'}];api.replaceState(state);
  document.querySelector('[data-view="partners"]').click();document.querySelector('[data-add="partners"]').click();
