@@ -109,7 +109,7 @@ droits d'accès, sauvegardes par fiche et historiques que les autres modules.
 ### Planning animations (migration 005)
 Après 004_bilan.sql, exécuter une fois `supabase/migrations/005_animations.sql`
 dans Supabase, puis recharger l’application. Chaque année conserve son propre
-programme. La vue couvre une seule journée choisie, de 08:00 à 20:00. Une
+programme. La vue couvre uniquement le jour du salon de l’édition, de 08:00 à 20:00. Sa date est modifiable dans Réglages (3 octobre 2026, 2 octobre 2027). Une
 animation contient un nom, des heures de début et fin, un responsable issu
 des Réglages, un partenaire facultatif, un prestataire libre et un commentaire.
 Les créneaux simultanés sont disposés côte à côte. Sans migration, l’onglet

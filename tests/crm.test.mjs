@@ -60,7 +60,7 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  globalThis.FormData=NativeFormData;
  const program=api.getState();program.animations=[];api.replaceState(program);
  document.querySelector('[data-view="animations"]').click();
- assert.equal(document.querySelectorAll('.animation-hour').length,13);
+ assert.equal(document.querySelectorAll('.animation-hour').length,13);assert.equal(document.querySelector('#animationDay'),null);assert.match(document.querySelector('.animation-panel h2').textContent,/3 oct/);
  document.querySelector('[data-animation-slot="09:00"]').click();
  let animation=document.getElementById('editForm');assert.equal(animation.elements.start.value,'09:00');
  animation.elements.title.value='Animation basket';animation.elements.owner.value='';
@@ -68,6 +68,6 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  assert.equal(api.getState().animations.length,1);assert.match(document.querySelector('.animation-event').textContent,/Animation basket/);
  document.querySelector('.animation-event').click();animation=document.getElementById('editForm');animation.elements.end.value='11:00';animation.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));
  assert.equal(api.getState().animations[0].end,'11:00');
- document.querySelector('[data-view="settings"]').click();assert.ok(document.querySelector('#accountSettings'));assert.ok(!document.querySelector('#refreshCloud'));assert.ok(!document.querySelector('.side-bottom'));
+ document.querySelector('[data-view="settings"]').click();document.querySelector('[data-salon-date]').value='2026-10-10';document.querySelector('[data-salon-date]').dispatchEvent(new Event('change',{bubbles:true}));assert.equal(api.getState().settings.salonDate,'2026-10-10');document.querySelector('[data-view="animations"]').click();assert.match(document.querySelector('.animation-panel h2').textContent,/10 oct/);assert.ok(document.querySelector('[data-edit^="animations:"]'));document.querySelector('[data-view="settings"]').click();assert.ok(document.querySelector('#accountSettings'));assert.ok(!document.querySelector('#refreshCloud'));assert.ok(!document.querySelector('.side-bottom'));
  dom.window.close();
 });

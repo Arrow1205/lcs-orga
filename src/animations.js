@@ -1,3 +1,11 @@
+export function salonDate(year,customDate){
+ const valid=typeof customDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(customDate)&&Number(customDate.slice(0,4))===year&&!Number.isNaN(Date.parse(customDate));
+ if(valid)return customDate;
+ if(year===2026)return '2026-10-03';
+ if(year===2027)return '2027-10-02';
+ const first=new Date(Date.UTC(year,9,1)).getUTCDay();
+ return year+'-10-'+String(1+(6-first+7)%7).padStart(2,'0');
+}
 export const MINUTE_START=8*60, MINUTE_END=20*60;
 export const minutes=time=>{if(!/^\d{2}:\d{2}$/.test(time||''))return NaN;const [h,m]=time.split(':').map(Number);return h<24&&m<60?h*60+m:NaN};
 export const validAnimation=(start,end)=>Number.isFinite(minutes(start))&&Number.isFinite(minutes(end))&&minutes(start)>=MINUTE_START&&minutes(end)<=MINUTE_END&&minutes(end)>minutes(start);
