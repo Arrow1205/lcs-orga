@@ -60,6 +60,35 @@ test('migration conserve les données en ligne, fichiers et champs inconnus ; s�
 test('espace vide initialisé sans importer de données locales',async()=>{const db=await setup(null);try{await db.exec(sql);const data=(await read(db)).data;assert.equal(data.tasks.length,0);assert.equal(data.zones.length,4);assert.equal(data.contactSplitVersion,1);}finally{await db.close();}});
 test('migration invalide : aucune table métier créée, source intacte',async()=>{const source={schema:1,tasks:[{title:'Sans id'}]};const db=await setup(source);try{await assert.rejects(db.exec(sql),/sans identifiant/);await db.exec('rollback');assert.equal((await db.query("select to_regclass('public.crm_tasks') as t")).rows[0].t,null);assert.deepEqual((await db.query('select data from crm_state')).rows[0].data,source);}finally{await db.close();}});
 const editionsSQL=await readFile(new URL('../supabase/migrations/003_editions.sql',import.meta.url),'utf8');
+const closeSQL=await readFile(new URL('../supabase/migrations/008_close_editions.sql',import.meta.url),'utf8');
+test('clôture : seul un admin change le statut et le serveur refuse toutes les écritures annuelles',async()=>{
+ const db=await setup({schema:1,contactSplitVersion:1,settings:{totalTables:120},contacts:[{id:'c',company:'Contact'}],tasks:[before]});
+ const write=(year,changes)=>db.query('select crm_apply_changes($1,$2,$3,$4)',[wid,crypto.randomUUID(),JSON.stringify(changes),year]);
+ try{
+  await db.exec(sql);await db.exec(editionsSQL);
+  await db.exec(await readFile(new URL('../supabase/migrations/004_bilan.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/005_animations.sql',import.meta.url),'utf8'));
+  await db.exec(closeSQL);
+  await db.query('select crm_create_edition($1,2027)',[wid]);
+  await db.exec('set role authenticated');
+  const priorId=crypto.randomUUID(),priorChange=[{entity:'ideas',id:'prior',before:null,after:{id:'prior',title:'Avant clôture'}}];
+  const prior=(await db.query('select crm_apply_changes($1,$2,$3,2026) as revision',[wid,priorId,JSON.stringify(priorChange)])).rows[0].revision;
+  await db.query('select crm_set_edition_closed($1,2026,true)',[wid]);
+  assert.ok((await db.query('select closed_at from crm_editions where year=2026')).rows[0].closed_at);
+  assert.equal((await db.query('select crm_apply_changes($1,$2,$3,2026) as revision',[wid,priorId,JSON.stringify(priorChange)])).rows[0].revision,prior);
+  await assert.rejects(write(2026,[{entity:'tasks',id:'one',before,after:{...before,title:'Écrasé'}}]),e=>e.code==='42501');
+  await assert.rejects(write(2026,[{entity:'contacts',id:'c',before:{id:'c',company:'Contact'},after:{id:'c',company:'Modifié'}}]),e=>e.code==='42501');
+  await assert.rejects(db.query('select crm_apply_changes_open($1,$2,$3,2026)',[wid,crypto.randomUUID(),'[]']),e=>e.code==='42501');
+  await write(2027,[{entity:'tasks',id:'new',before:null,after:{id:'new',title:'Nouvelle année'}}]);
+  await db.exec('reset role');await db.exec("update crm_members set role='editor'; set role authenticated;");
+  await assert.rejects(db.query('select crm_set_edition_closed($1,2026,false)',[wid]),e=>e.code==='42501');
+  await db.exec('reset role');await db.exec("update crm_members set role='admin'; set role authenticated;");
+  await db.query('select crm_set_edition_closed($1,2026,false)',[wid]);
+  await write(2026,[{entity:'tasks',id:'one',before,after:{...before,title:'Rouverte'}}]);
+  const state=(await db.query('select crm_read_records($1,2026) as state',[wid])).rows[0].state.data;
+  assert.equal(state.tasks.find(x=>x.id==='one').title,'Rouverte');
+ }finally{await db.close()}
+});
 test('années isolées, contacts partagés, restauration et anciennes données conservées',async()=>{
  const source={schema:1,contactSplitVersion:1,tasks:[before],contacts:[{id:'c',company:'Commun'}],settings:{totalTables:200,owners:['Alice']},forecast2027:{proPrice:50},assets:[{id:'file',blobId:'original-file'}]};
  const db=await setup(source);

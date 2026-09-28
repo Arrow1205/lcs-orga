@@ -12,13 +12,16 @@ test('salon, exposants, pins, assets et couleurs des animations restent enregist
  const api=startCRM(null,cloud),state=api.getState();
  state.animations=[];
  state.exhibitors=[{id:'x1',first:'Alex',last:'Martin',community:'Basket',choice1:'soccer',status:'À traiter',vendorType:'Pro',tables:2,amount:200,zone:'basket'}];
+ state.partners=[{id:'p1',status:'Terminé'},{id:'p2',status:'À relancer'},{id:'p3',status:'Validé'},{id:'p4',status:'À contacter'},{id:'p5',status:'En discussion'},{id:'p6',status:'Refusé'}];
  state.assets=[{id:'a1',title:'Logo',category:'Charte'},{id:'a2',title:'Communiqué',category:'Presse'}];
+ state.settings.tableFormats=[{id:'fmt',size:'160 × 60 cm',quantity:12}];
  state.settings.planPdf={blobId:'pdf-plan',fileName:'plan.pdf'};
  api.replaceState(state);
  document.querySelector('[data-view="dashboard"]').click();
- assert.equal(document.querySelectorAll('.overview-attendance > .stat').length,2);
+ assert.equal(document.querySelectorAll('.overview-attendance > .stat').length,3);
  assert.equal(document.querySelectorAll('.zone-donut').length,4);
  assert.match(document.querySelector('.overview-attendance').textContent,/2\s*\/\s*120/);
+ assert.match(document.querySelector('.overview-attendance > :last-child').textContent,/3/);
  assert.match(document.querySelector('.finance-card.balance .k').textContent,/Budget restant/);
 
  document.querySelector('[data-view="salon"]').click();
@@ -27,6 +30,13 @@ test('salon, exposants, pins, assets et couleurs des animations restent enregist
  assert.ok(document.querySelector('[data-salon-text="contactLast"]'));
  assert.ok(document.querySelector('[data-salon-text="contactPhone"]'));
  assert.ok(document.querySelector('[data-salon-text="contactEmail"]'));
+ document.querySelector('[data-table-toggle="fmt"]').click();
+ assert.equal(api.getState().settings.tableFormats[0].enabled,false);
+ assert.match(document.querySelector('.salon-table-types').textContent,/108 \/ 120/);
+ document.querySelector('[data-view="dashboard"]').click();
+ assert.match(document.querySelector('.overview-attendance').textContent,/2\s*\/\s*108/);
+ document.querySelector('[data-view="salon"]').click();document.querySelector('[data-table-toggle="fmt"]').click();
+ assert.equal(api.getState().settings.tableFormats[0].enabled,true);
 
  document.querySelector('[data-view="exhibitors"]').click();
  assert.equal(document.querySelectorAll('.exhibitor-zone-kpi').length,4);
@@ -48,7 +58,8 @@ test('salon, exposants, pins, assets et couleurs des animations restent enregist
  assert.ok(document.querySelector('[data-approve-community="x1"]'));
 
  document.querySelector('[data-exhibitor-tab="plan"]').click();
- document.querySelector('[data-plan-pin-add]').click();
+ assert.ok(document.querySelector('.plan-comments'));
+ document.getElementById('planLoading').remove();
  const canvas=document.querySelector('#planCanvas');
  canvas.getBoundingClientRect=()=>({left:100,top:200,width:400,height:200});
  canvas.dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true,clientX:300,clientY:250}));
@@ -81,5 +92,21 @@ test('salon, exposants, pins, assets et couleurs des animations restent enregist
  assert.equal(api.getState().animations[0].color,'#FE4F14');
  assert.match(document.querySelector('.animation-event').getAttribute('style'),/--animation-color:#FE4F14/);
  assert.ok(saved.length>0);
+ dom.window.close();
+});
+
+test('clôture annuelle : accès admin au pilotage, réouverture depuis les réglages',async()=>{
+ const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+ const dom=new JSDOM(html,{url:'https://crm.test/'}),calls=[];
+ Object.assign(globalThis,{window:dom.window,document:dom.window.document,FormData:dom.window.FormData,Event:dom.window.Event,scrollTo:()=>{},alert:()=>{},confirm:()=>true});
+ let api;
+ const cloud={year:2026,role:'admin',closed:false,save:()=>{},placeAccount:()=>{},setClosed:async value=>{calls.push(value);cloud.closed=value;api.setClosed(value)}};
+ api=startCRM(null,cloud);
+ document.querySelector('[data-edition-close]').click();await new Promise(resolve=>setTimeout(resolve,0));
+ assert.deepEqual(calls,[true]);assert.match(document.querySelector('.closed-banner').textContent,/consultation uniquement/);
+ assert.equal(document.querySelector('[data-edition-close]'),null);
+ document.querySelector('[data-view="settings"]').click();assert.ok(document.querySelector('[data-edition-reopen]'));
+ document.querySelector('[data-edition-reopen]').click();await new Promise(resolve=>setTimeout(resolve,0));
+ assert.deepEqual(calls,[true,false]);assert.equal(document.querySelector('.closed-banner'),null);
  dom.window.close();
 });
