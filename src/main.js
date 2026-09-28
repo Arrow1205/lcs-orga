@@ -4,6 +4,7 @@ import {mountEditions} from './editions.js';
 import {RecordSync} from './records.js';
 import './crm.css';
 import './cloud.css';
+import './design.css';
 const $=id=>document.getElementById(id);
 const url=import.meta.env.VITE_SUPABASE_URL,key=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 let client,api,sync,workspaceId,role,userId,editionYear,busy=false,poll,recovering=location.hash.includes('recovery');
