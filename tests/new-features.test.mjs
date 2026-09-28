@@ -1,0 +1,85 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {JSDOM} from 'jsdom';
+import {startCRM} from '../src/crm.js';
+
+test('salon, exposants, pins, assets et couleurs des animations restent enregistrés',async()=>{
+ const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+ const dom=new JSDOM(html,{url:'https://crm.test/'}),saved=[];
+ Object.assign(globalThis,{window:dom.window,document:dom.window.document,FormData:dom.window.FormData,Event:dom.window.Event,scrollTo:()=>{},alert:()=>{},confirm:()=>true});
+ const cloud={year:2026,role:'editor',save:state=>saved.push(structuredClone(state)),putBlob:async()=>{},getBlob:async()=>new Blob(['pdf'],{type:'application/pdf'})};
+ const api=startCRM(null,cloud),state=api.getState();
+ state.animations=[];
+ state.exhibitors=[{id:'x1',first:'Alex',last:'Martin',community:'Basket',choice1:'soccer',status:'À traiter',vendorType:'Pro',tables:2,amount:200,zone:'basket'}];
+ state.assets=[{id:'a1',title:'Logo',category:'Charte'},{id:'a2',title:'Communiqué',category:'Presse'}];
+ state.settings.planPdf={blobId:'pdf-plan',fileName:'plan.pdf'};
+ api.replaceState(state);
+ document.querySelector('[data-view="dashboard"]').click();
+ assert.equal(document.querySelectorAll('.overview-attendance > .stat').length,2);
+ assert.equal(document.querySelectorAll('.zone-donut').length,4);
+ assert.match(document.querySelector('.overview-attendance').textContent,/2\s*\/\s*120/);
+ assert.match(document.querySelector('.finance-card.balance .k').textContent,/Budget restant/);
+
+ document.querySelector('[data-view="salon"]').click();
+ const first=document.querySelector('[data-salon-text="contactFirst"]');first.value='Clara';first.dispatchEvent(new Event('change',{bubbles:true}));
+ assert.equal(api.getState().settings.contactFirst,'Clara');
+ assert.ok(document.querySelector('[data-salon-text="contactLast"]'));
+ assert.ok(document.querySelector('[data-salon-text="contactPhone"]'));
+ assert.ok(document.querySelector('[data-salon-text="contactEmail"]'));
+
+ document.querySelector('[data-view="exhibitors"]').click();
+ assert.equal(document.querySelectorAll('.exhibitor-zone-kpi').length,4);
+ assert.match(document.querySelector('.exhibitor-zone-kpi').textContent,/200/);
+ assert.ok(document.querySelector('.vendor-donut'));
+ assert.ok(document.querySelector('[data-approve-community="x1"]'));
+ document.querySelector('[data-row-edit="exhibitors:x1"]').click();
+ const ex=document.getElementById('editForm');
+ assert.equal(ex.elements.status.value,'À contacter');
+ assert.equal(document.querySelector('#communityEditorWarning').hidden,false);
+ document.querySelector('.close').click();
+ document.querySelector('[data-approve-community="x1"]').click();
+ assert.equal(api.getState().exhibitors[0].communityChoiceApproval,'Basket|soccer');
+ assert.equal(document.querySelector('[data-approve-community="x1"]'),null);
+ document.querySelector('[data-row-edit="exhibitors:x1"]').click();
+ const revised=document.getElementById('editForm');revised.elements.choice1.value='tcg';revised.elements.choice1.dispatchEvent(new Event('change',{bubbles:true}));
+ assert.equal(revised.elements.status.value,'À contacter');assert.equal(document.querySelector('#communityEditorWarning').hidden,false);
+ revised.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,0));
+ assert.ok(document.querySelector('[data-approve-community="x1"]'));
+
+ document.querySelector('[data-exhibitor-tab="plan"]').click();
+ document.querySelector('[data-plan-pin-add]').click();
+ const canvas=document.querySelector('#planCanvas');
+ canvas.getBoundingClientRect=()=>({left:100,top:200,width:400,height:200});
+ canvas.dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true,clientX:300,clientY:250}));
+ const pinForm=document.querySelector('#planPinForm');assert.ok(pinForm);
+ pinForm.elements.comment.value='Entrée VIP';pinForm.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+ assert.equal(api.getState().settings.planPins[0].x,50);
+ assert.equal(api.getState().settings.planPins[0].y,25);
+ assert.equal(document.querySelectorAll('[data-plan-surface] .plan-pin').length,1);
+ assert.match(document.querySelector('.plan-pin-list').textContent,/Entrée VIP/);
+ document.querySelector('[data-plan-zoom="in"]').click();
+ assert.equal(document.querySelector('.plan-pin').style.left,'50%');
+
+ document.querySelector('[data-view="assets"]').click();
+ assert.equal(document.querySelectorAll('tbody tr').length,2);
+ document.querySelector('[data-asset-tab="Presse"]').click();
+ assert.equal(document.querySelectorAll('tbody tr').length,1);
+ assert.match(document.querySelector('tbody').textContent,/Communiqué/);
+ document.querySelector('[data-add="assets"]').click();
+ const asset=document.getElementById('editForm');assert.equal(asset.elements.category.value,'Presse');
+ asset.elements.category.value='Autre';asset.elements.category.dispatchEvent(new Event('change',{bubbles:true}));
+ assert.equal(asset.querySelector('[data-field="categoryOther"]').hidden,false);
+ document.querySelector('.close').click();
+
+ document.querySelector('[data-view="animations"]').click();
+ document.querySelector('[data-add="animations"]').click();
+ const animation=document.getElementById('editForm');
+ assert.equal(animation.querySelectorAll('[name="color"]').length,5);
+ animation.elements.title.value='Tournoi';animation.querySelector('[name="color"][value="#FE4F14"]').checked=true;
+ animation.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,0));
+ assert.equal(api.getState().animations[0].color,'#FE4F14');
+ assert.match(document.querySelector('.animation-event').getAttribute('style'),/--animation-color:#FE4F14/);
+ assert.ok(saved.length>0);
+ dom.window.close();
+});

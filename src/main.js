@@ -18,7 +18,7 @@ function recovery(error,snapshot){
  if(error.code!=='40001'){const retry=document.createElement('button');retry.textContent='Réessayer';retry.onclick=()=>{box.hidden=true;$('crmRoot').inert=false;sync.retry();};box.append(retry);}
  const reload=document.createElement('button');reload.textContent='Recharger la version partagée';reload.onclick=()=>{if(confirm('As-tu conservé ta copie locale ? Les changements non synchronisés de cet onglet seront abandonnés.')){sync.blocked=false;sync.pending=null;location.reload();}};box.append(reload);
 }
-const forbidden='[data-add],[data-delete],[data-add-goodie],[data-remove-goodie],[data-partner-invoice],[data-accept-zone],[data-extra-add],[data-extra-delete],[data-owner-delete],[data-plan-remove],[data-table-add],[data-table-remove],[data-select-exhibitor],#selectAll,[data-cal-add]';
+const forbidden='[data-add],[data-delete],[data-add-goodie],[data-remove-goodie],[data-partner-invoice],[data-accept-zone],[data-approve-community],[data-extra-add],[data-extra-delete],[data-owner-delete],[data-plan-remove],[data-plan-pin-add],[data-plan-pin-remove],[data-table-add],[data-table-remove],[data-select-exhibitor],#selectAll,[data-cal-add]';
 function protectViewer(){if(role!=='viewer')return;
  const root=$('crmRoot');
  function refresh(){root.querySelectorAll(forbidden).forEach(el=>el.hidden=true);root.querySelectorAll('input,select,textarea').forEach(el=>{if(!el.matches('#search,.column-filter,[data-column],#zoneFilter,#statusFilter'))el.disabled=true;});root.querySelectorAll('form button').forEach(el=>{if(!el.matches('[data-close]'))el.disabled=true;});root.querySelectorAll('[data-action]').forEach(el=>{if(!['finance-detail'].includes(el.dataset.action))el.hidden=true;});}
