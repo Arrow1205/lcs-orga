@@ -17,6 +17,6 @@ test('migration détecte fichier absent',async()=>{await assert.rejects(decodeMi
 test('migration vérifie SHA-256 et reconstitue la pièce jointe',async()=>{
  const blob=new TextEncoder().encode('test');const hash=Buffer.from(await crypto.subtle.digest('SHA-256',blob)).toString('hex');
  const pack={format:'lcs-migration',version:1,state,files:[{id:'one',type:'text/plain',base64:Buffer.from(blob).toString('base64'),sha256:hash}]};
- const result=await decodeMigration(pack);assert.equal(await result.files.get('one').text(),'test');assert.deepEqual(referencedFiles(state),['one']);
+ const result=await decodeMigration(pack);assert.equal(await result.files.get('one').text(),'test');assert.deepEqual(referencedFiles(state),['one']);assert.deepEqual(referencedFiles({...state,settings:{planPdf:{blobId:'plan'}}}),['one','plan']);
  pack.files[0].sha256='wrong';await assert.rejects(decodeMigration(pack),/Intégrité/);
 });

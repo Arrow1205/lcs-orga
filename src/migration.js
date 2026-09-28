@@ -6,7 +6,7 @@ export function validateState(state){
  return state;
 }
 export function isEmpty(state){return !state||collections.every(k=>!(state[k]?.length));}
-export function referencedFiles(state){return [...new Set(collections.flatMap(k=>(state[k]||[]).flatMap(x=>[x.blobId,x.logoId,x.imageId].filter(Boolean))))];}
+export function referencedFiles(state){return [...new Set([...collections.flatMap(k=>(state[k]||[]).flatMap(x=>[x.blobId,x.logoId,x.imageId].filter(Boolean))),state.settings?.planPdf?.blobId].filter(Boolean))];}
 export async function decodeMigration(pack){
  if(pack.format!=='lcs-migration'||pack.version!==1)throw Error('Utilise le fichier produit par l’outil de migration fourni.');
  validateState(pack.state);if(pack.missing?.length)throw Error('Des pièces jointes manquaient lors de l’export local. Rattache-les dans la V1 puis recommence.');

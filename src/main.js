@@ -7,7 +7,7 @@ import './cloud.css';
 import './design.css';
 const $=id=>document.getElementById(id);
 const url=import.meta.env.VITE_SUPABASE_URL,key=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-let client,api,sync,workspaceId,role,userId,editionYear,busy=false,poll,recovering=location.hash.includes('recovery');
+let client,api,sync,workspaceId,role,userId,editionYear,sharedOwners=null,busy=false,poll,recovering=location.hash.includes('recovery');
 const status=text=>{$('syncStatus').textContent=text;};
 function downloadJSON(data,name){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),30000);}
 function recovery(error,snapshot){
@@ -18,7 +18,7 @@ function recovery(error,snapshot){
  if(error.code!=='40001'){const retry=document.createElement('button');retry.textContent='Réessayer';retry.onclick=()=>{box.hidden=true;$('crmRoot').inert=false;sync.retry();};box.append(retry);}
  const reload=document.createElement('button');reload.textContent='Recharger la version partagée';reload.onclick=()=>{if(confirm('As-tu conservé ta copie locale ? Les changements non synchronisés de cet onglet seront abandonnés.')){sync.blocked=false;sync.pending=null;location.reload();}};box.append(reload);
 }
-const forbidden='[data-add],[data-delete],[data-add-goodie],[data-remove-goodie],[data-partner-invoice],[data-accept-zone],[data-extra-add],[data-extra-delete],[data-owner-delete],[data-select-exhibitor],#selectAll,[data-cal-add]';
+const forbidden='[data-add],[data-delete],[data-add-goodie],[data-remove-goodie],[data-partner-invoice],[data-accept-zone],[data-extra-add],[data-extra-delete],[data-owner-delete],[data-plan-remove],[data-table-add],[data-table-remove],[data-select-exhibitor],#selectAll,[data-cal-add]';
 function protectViewer(){if(role!=='viewer')return;
  const root=$('crmRoot');
  function refresh(){root.querySelectorAll(forbidden).forEach(el=>el.hidden=true);root.querySelectorAll('input,select,textarea').forEach(el=>{if(!el.matches('#search,.column-filter,[data-column],#zoneFilter,#statusFilter'))el.disabled=true;});root.querySelectorAll('form button').forEach(el=>{if(!el.matches('[data-close]'))el.disabled=true;});root.querySelectorAll('[data-action]').forEach(el=>{if(!['finance-detail'].includes(el.dataset.action))el.hidden=true;});}
@@ -39,6 +39,7 @@ async function passwordScreen(){
  $('loginScreen').hidden=false;$('loginScreen').innerHTML='<form class="login-card" id="newPasswordForm"><h1>Nouveau mot de passe</h1><label>Mot de passe<input name="password" type="password" minlength="12" required autocomplete="new-password"></label><button>Enregistrer</button><p id="loginMessage"></p></form>';
  $('newPasswordForm').onsubmit=async e=>{e.preventDefault();const {error}=await client.auth.updateUser({password:String(new FormData(e.target).get('password'))});if(error){$('loginMessage').textContent=error.message;return;}location.replace(location.origin);};
 }
+async function loadOwners(){const {data,error}=await client.rpc('crm_read_owners',{p_workspace:workspaceId});if(error){if(['42883','PGRST202'].includes(error.code))return null;throw error}return Array.isArray(data)?data:[]}
 async function loadState(){const {data,error}=await client.rpc('crm_read_records',{p_workspace:workspaceId,p_year:editionYear});if(error)throw error;return data;}
 async function boot(){
  const {data:{session},error}=await client.auth.getSession();if(error)throw error;if(!session){login();return;}
@@ -50,7 +51,7 @@ async function boot(){
  const {data:editions,error:editionsError}=await client.from('crm_editions').select('year').eq('workspace_id',workspaceId).order('year');if(editionsError)throw editionsError;
  const years=editions.map(e=>Number(e.year));if(!years.length)throw Error('Aucune édition : appliquer la migration 003.');
  const yearKey='lcs-active-edition:'+workspaceId+':'+userId,preferred=Number(sessionStorage.getItem(yearKey));editionYear=years.includes(preferred)?preferred:Math.max(...years);
- const initial=await loadState();
+ const initial=await loadState();sharedOwners=await loadOwners();
  const selectYear=year=>{sessionStorage.setItem(yearKey,String(year));location.reload();};
  mountEditions({host:$('editionPicker'),years,selected:editionYear,canCreate:role!=='viewer',onSelect:selectYear,
   canLeave:()=>{if(sync?.dirty||busy||$('overlay').innerHTML){alert('Enregistre ou ferme la fiche ouverte et attends la fin de la synchronisation avant de changer d’année.');return false;}return true;},
@@ -68,14 +69,14 @@ async function boot(){
  }
 
  const storage=client.storage.from('lcs-private');
- const backend={year:editionYear,role,placeAccount,mountMembers,save(data){if(role==='viewer'){status('Lecture seule');return;}sync.enqueue(data);},
+ const backend={year:editionYear,role,owners:sharedOwners,placeAccount,mountMembers,async saveOwners(name,remove=false){if(role==='viewer')throw Error('Lecture seule');const {data,error}=await client.rpc('crm_change_owner',{p_workspace:workspaceId,p_name:name,p_remove:remove});if(error)throw Error(['PGRST202','42883'].includes(error.code)?'Exécute la migration 007_global_owners.sql dans Supabase.':error.message);sharedOwners=data;backend.owners=data;return data},save(data){if(role==='viewer'){status('Lecture seule');return;}sync.enqueue(data);},
   async putBlob(id,blob){if(role==='viewer')throw Error('Lecture seule');if(blob.size>50*1024*1024)throw Error('Maximum 50 Mo par fichier');const {error}=await storage.upload(`${workspaceId}/${id}`,blob,{upsert:false,contentType:blob.type||'application/octet-stream'});if(error)throw error;},
   async getBlob(id){const {data,error}=await storage.download(`${workspaceId}/${id}`);if(error)throw error;return data;}
  };
  protectViewer();api=startCRM(initial.data,backend);status('À jour');
  $('logoutCloud').onclick=async()=>{if(sync.dirty||busy){alert('Termine la synchronisation ou télécharge ta copie avant de te déconnecter.');return;}clearInterval(poll);await client.auth.signOut();location.reload();};
 
- poll=setInterval(async()=>{if(sync.dirty||busy||document.hidden)return;try{const next=await loadState();if(sync.dirty||busy)return;if(Number(next.revision)===sync.revision&&!sync.refreshNeeded)return;if(!$('overlay').innerHTML&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName||'')){if(!sync.accept(next))return;api.replaceState(next.data);status('Actualisé');}else{status('Une mise à jour est disponible');}}catch{status('Connexion à vérifier');}},15000);
+ poll=setInterval(async()=>{if(sync.dirty||busy||document.hidden)return;try{const [next,owners]=await Promise.all([loadState(),loadOwners()]);if(sync.dirty||busy)return;const changedOwners=owners&&JSON.stringify(owners)!==JSON.stringify(sharedOwners),changedYear=Number(next.revision)!==sync.revision||sync.refreshNeeded;if(!changedOwners&&!changedYear)return;if(!$('overlay').innerHTML&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName||'')){if(changedYear){if(!sync.accept(next))return;api.replaceState(next.data)}if(changedOwners){sharedOwners=owners;backend.owners=owners;api.setOwners(owners)}status('Actualisé');}else{status('Une mise à jour est disponible');}}catch{status('Connexion à vérifier');}},15000);
  window.addEventListener('beforeunload',e=>{if(sync.dirty||busy){e.preventDefault();e.returnValue='';}});
 }
 if(!url||!key){$('loginScreen').innerHTML='<div class="login-card"><h1>Configuration manquante</h1><p>Ajouter VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY puis relancer le build.</p></div>';}else{
