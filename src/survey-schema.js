@@ -27,7 +27,7 @@ export const questions={
  ],
  exposant:[
   {key:'participation',label:'Quel était ton rôle cette année ?',kind:'choice',options:['Exposant','Partenaire'],required:true},
-  {key:'vendorType',label:'Quel type d’exposant étais-tu ?',kind:'choice',options:['Professionnel','Particulier','Artiste'],required:true,when:a=>a.participation==='Exposant'},
+  {key:'vendorType',label:'Quel type d’exposant étais-tu ?',kind:'choice',options:['Professionnel','Particulier','Artiste'],required:true,showIf:{key:'participation',equals:'Exposant'}},
   {key:'community',label:'Quelle était ta communauté principale ?',kind:'choice',options:['Basket','Soccer','Sport US','TCG','Autre']},
   {key:'zone',label:'Dans quelle zone étais-tu installé·e ?',kind:'choice',options:['Basket','Soccer','Sport US','TCG','Autre']},
   {key:'setup',label:'Comment s’est passée ton installation ?',kind:'rating',required:true},
@@ -38,14 +38,21 @@ export const questions={
   {key:'identity',label:'Souhaites-tu laisser ton nom ou celui de ta société ?',kind:'text',hint:'Facultatif. Tu peux terminer sans t’identifier.'}
  ]
 };
-export const allowedKeys=Object.fromEntries(types.map(type=>[type,new Set(questions[type].map(q=>q.key))]));
-export function activeQuestions(type,answers){return (questions[type]||[]).filter(q=>!q.when||q.when(answers));}
-export function validateAnswers(type,answers){
+export function activeQuestions(type,answers,definitions=questions[type]){
+ return (definitions||[]).filter(q=>!q.showIf||answers[q.showIf.key]===q.showIf.equals);
+}
+export function validateAnswers(type,answers,definitions=questions[type]){
  if(!types.includes(type)||!answers||typeof answers!=='object'||Array.isArray(answers))return false;
- return activeQuestions(type,answers).every(q=>{
+ const all=definitions||[];
+ const active=activeQuestions(type,answers,all);
+ const keys=new Set(active.map(q=>q.key));
+ return active.every(q=>{
   const v=answers[q.key];
-  if(v===undefined||v==='')return !q.required;
+  if(v===undefined||v===''||Array.isArray(v)&&!v.length)return !q.required;
   if(q.kind==='rating')return Number.isInteger(v)&&v>=0&&v<=5;
-  return typeof v==='string'&&v.length<=1200&&(!q.options||q.options.includes(v));
- })&&Object.entries(answers).every(([key,value])=>allowedKeys[type].has(key)&&(typeof value==='string'&&value.length<=1200||Number.isInteger(value)&&value>=0&&value<=5));
+  if(q.kind==='checkbox')return Array.isArray(v)&&v.every(x=>typeof x==='string'&&q.options?.includes(x));
+  if(q.kind==='number')return typeof v==='number'&&Number.isFinite(v);
+  if(q.kind==='date')return typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v);
+  return typeof v==='string'&&v.length<=1200&&(!['choice','dropdown'].includes(q.kind)||q.options?.includes(v));
+ })&&Object.entries(answers).every(([key,value])=>keys.has(key)&&(typeof value==='string'&&value.length<=1200||typeof value==='number'&&Number.isFinite(value)||Array.isArray(value)&&value.length<=20&&value.every(x=>typeof x==='string'&&x.length<=120)));
 }

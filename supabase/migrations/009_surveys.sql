@@ -52,7 +52,7 @@ begin
  elsif p_type='exposant' then
   allowed:=array['participation','vendorType','community','zone','setup','attendance','value','roi','satisfaction','highlights','improvements','returnIntent','identity'];
   required:=array['participation','setup','attendance','value','roi','satisfaction','returnIntent'];
-  if p_answers->>'participation'='Exposant' then required:=required||'vendorType'; end if;
+  if p_answers->>'participation'='Exposant' then required:=array_append(required,'vendorType'); end if;
  end if;
  foreach k in array required loop
   if coalesce(p_answers->>k,'')='' then raise exception 'Réponse obligatoire manquante : %',k using errcode='22023'; end if;
