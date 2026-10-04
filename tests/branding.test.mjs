@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {JSDOM} from 'jsdom';
+import {startCRM} from '../src/crm.js';
+
+test('logo 2026 par défaut puis logo propre à 2027',async()=>{
+ const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+ const dom=new JSDOM(html,{url:'https://crm.test/'});
+ Object.assign(globalThis,{window:dom.window,document:dom.window.document,FormData:dom.window.FormData,Event:dom.window.Event,scrollTo:()=>{},alert:()=>{},confirm:()=>true});
+ const cloud={year:2026,role:'editor',save:()=>{},brandingUrl:path=>'https://images.test/'+path,uploadBranding:async()=> 'workspace/2026/logo.png'};
+ const api=startCRM(null,cloud);
+ assert.match(document.querySelector('.brand img').src,/lcs-2026.png/);
+ document.querySelector('[data-view="settings"]').click();
+ assert.match(document.querySelector('.annual-logo-preview').src,/lcs-2026.png/);
+ const input=document.getElementById('annualLogoUpload');
+ Object.defineProperty(input,'files',{value:[new dom.window.File(['image'],'logo.png',{type:'image/png'})]});
+ input.dispatchEvent(new Event('change',{bubbles:true}));
+ await new Promise(resolve=>setTimeout(resolve,0));
+ assert.equal(api.getState().settings.logoPath,'workspace/2026/logo.png');
+ assert.match(document.querySelector('.brand img').src,/images.test/);
+ dom.window.close();
+ const next=new JSDOM(html,{url:'https://crm.test/'});
+ Object.assign(globalThis,{window:next.window,document:next.window.document,FormData:next.window.FormData,Event:next.window.Event});
+ startCRM(null,{...cloud,year:2027});
+ assert.equal(document.querySelector('.brand img'),null);
+ document.querySelector('[data-view="settings"]').click();
+ assert.match(document.querySelector('.annual-logo-panel').textContent,/Aucun logo pour cette édition/);
+ next.window.close();
+});

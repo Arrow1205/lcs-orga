@@ -91,3 +91,27 @@ test('éditeur : ajout, options, ordre et affichage filtré',async()=>{
  assert.doesNotMatch(surveyResultsMarkup(rows,'all',2026,{community:'Basket'}),/Trop de monde/);
  dom.window.close();
 });
+const brandingSQL=await readFile(new URL('../supabase/migrations/011_edition_branding.sql',import.meta.url),'utf8');
+test('logo annuel public, upload réservé aux membres de l’édition ouverte',async()=>{const db=await setup();try{
+ await db.exec(`alter table crm_editions add column closed_at timestamptz;
+ create table crm_settings(workspace_id uuid,edition_year integer,id text,payload jsonb);
+ create schema storage;
+ create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+ create table storage.objects(bucket_id text,name text);
+ create function storage.foldername(path text) returns text[] language sql immutable as $$select string_to_array(regexp_replace(path,'/[^/]*$',''),'/')$$;
+ alter table storage.objects enable row level security;
+ grant usage on schema storage to authenticated;
+ grant select on crm_editions to authenticated;
+ grant insert on storage.objects to authenticated;
+ insert into crm_settings values('${wid}',2026,'main','{"logoPath":"${wid}/2026/00000000-0000-0000-0000-000000000002.png"}');`);
+ await db.exec(editorMigration);await db.exec(brandingSQL);
+ await db.exec('set role anon');
+ const info=(await db.query("select crm_public_survey_info('lcs') as result")).rows[0].result;
+ assert.equal(info.logo,`${wid}/2026/00000000-0000-0000-0000-000000000002.png`);
+ await assert.rejects(db.query("insert into storage.objects values('lcs-branding',$1)",[info.logo]),e=>e.code==='42501');
+ await db.exec('reset role');await db.exec('set role authenticated');
+ await db.query("insert into storage.objects values('lcs-branding',$1)",[info.logo]);
+ await assert.rejects(db.query("insert into storage.objects values('lcs-branding',$1)",[`${wid}/2027/00000000-0000-0000-0000-000000000003.png`]),e=>e.code==='42501');
+ await db.exec('reset role');await db.query(`update crm_editions set closed_at=now() where workspace_id='${wid}' and year=2026`);await db.exec('set role authenticated');
+ await assert.rejects(db.query("insert into storage.objects values('lcs-branding',$1)",[`${wid}/2026/00000000-0000-0000-0000-000000000004.png`]),e=>e.code==='42501');
+ }finally{await db.close()}});
