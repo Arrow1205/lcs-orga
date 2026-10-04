@@ -49,10 +49,16 @@ export function validateAnswers(type,answers,definitions=questions[type]){
  return active.every(q=>{
   const v=answers[q.key];
   if(v===undefined||v===''||Array.isArray(v)&&!v.length)return !q.required;
+  if(q.kind==='grid'){
+   if(!v||typeof v!=='object'||Array.isArray(v)||!Array.isArray(q.rows)||!Array.isArray(q.columns))return false;
+   const entries=Object.entries(v);
+   return (!q.required||q.rows.every(row=>Object.hasOwn(v,row)))&&entries.every(([row,choice])=>q.rows.includes(row)&&typeof choice==='string'&&q.columns.includes(choice));
+  }
   if(q.kind==='rating')return Number.isInteger(v)&&v>=0&&v<=5;
+  if(q.kind==='rating10')return Number.isInteger(v)&&v>=0&&v<=10;
   if(q.kind==='checkbox')return Array.isArray(v)&&v.every(x=>typeof x==='string'&&q.options?.includes(x));
   if(q.kind==='number')return typeof v==='number'&&Number.isFinite(v);
   if(q.kind==='date')return typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v);
   return typeof v==='string'&&v.length<=1200&&(!['choice','dropdown'].includes(q.kind)||q.options?.includes(v));
- })&&Object.entries(answers).every(([key,value])=>keys.has(key)&&(typeof value==='string'&&value.length<=1200||typeof value==='number'&&Number.isFinite(value)||Array.isArray(value)&&value.length<=20&&value.every(x=>typeof x==='string'&&x.length<=120)));
+ })&&Object.entries(answers).every(([key,value])=>keys.has(key)&&(typeof value==='string'&&value.length<=1200||typeof value==='number'&&Number.isFinite(value)||Array.isArray(value)&&value.length<=20&&value.every(x=>typeof x==='string'&&x.length<=120)||!!active.find(q=>q.key===key&&q.kind==='grid')&&value&&typeof value==='object'&&!Array.isArray(value)));
 }

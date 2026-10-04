@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {questions,validateAnswers} from '../src/survey-schema.js';
 import {surveyStats,themesFor} from '../src/survey-results.js';
+import {buildSurveyCSV} from '../src/survey-editor.js';
 const wid='10000000-0000-0000-0000-000000000001',uid='00000000-0000-0000-0000-000000000001';
 const migration=await readFile(new URL('../supabase/migrations/009_surveys.sql',import.meta.url),'utf8');
 async function setup(){const db=new PGlite();await db.exec(`create role anon;create role authenticated;create schema auth;
@@ -86,6 +87,13 @@ test('éditeur : ajout, options, ordre et affichage filtré',async()=>{
  host.querySelector(`[data-index="${last}"][data-prop="label"]`).dispatchEvent(new dom.window.Event('input'));
  host.querySelector(`[data-survey-up="${last}"]`).click();
  assert.equal(state.items.at(-2).label,'Notre nouvelle question');
+ let kind=host.querySelector(`[data-index="${last-1}"][data-prop="kind"]`);kind.value='grid';kind.dispatchEvent(new dom.window.Event('input'));kind.dispatchEvent(new dom.window.Event('change'));
+ assert.deepEqual(state.items.at(-2).rows,['Ligne 1','Ligne 2']);
+ let gridRows=host.querySelector(`[data-index="${last-1}"][data-prop="rows"]`);gridRows.value='Accueil\nSignalétique';gridRows.dispatchEvent(new dom.window.Event('input'));
+ assert.deepEqual(state.items.at(-2).rows,['Accueil','Signalétique']);
+ kind=host.querySelector(`[data-index="${last-1}"][data-prop="kind"]`);kind.value='rating10';kind.dispatchEvent(new dom.window.Event('input'));kind.dispatchEvent(new dom.window.Event('change'));
+ assert.equal(state.items.at(-2).kind,'rating10');
+ assert.equal(state.items.at(-2).rows,undefined);
  const rows=[{id:'1',type:'visiteur',created_at:'2026-10-04T00:00:00Z',answers:{community:'Basket',satisfaction:5,highlights:'Bonne ambiance'}},{id:'2',type:'visiteur',created_at:'2026-10-04T00:00:00Z',answers:{community:'TCG',satisfaction:1,improvements:'Trop de monde'}}];
  assert.match(surveyResultsMarkup(rows,'all',2026,{community:'Basket'}),/Vue Basket · 1 réponses/);
  assert.doesNotMatch(surveyResultsMarkup(rows,'all',2026,{community:'Basket'}),/Trop de monde/);
@@ -93,6 +101,26 @@ test('éditeur : ajout, options, ordre et affichage filtré',async()=>{
 });
 const brandingSQL=await readFile(new URL('../supabase/migrations/011_edition_branding.sql',import.meta.url),'utf8');
 const yearLinksSQL=await readFile(new URL('../supabase/migrations/012_survey_year_links.sql',import.meta.url),'utf8');
+const gridSQL=await readFile(new URL('../supabase/migrations/013_survey_grid_rating10.sql',import.meta.url),'utf8');
+test('grille et note 0–10 : édition, réponse anonyme et export lisible',async()=>{const db=await setup();try{
+ await db.exec('alter table crm_editions add column closed_at timestamptz');
+ await db.exec(editorMigration);await db.exec(gridSQL);await db.exec('set role authenticated');
+ const schema=[{key:'experience',label:'Ton expérience',kind:'grid',rows:['Accueil','Signalétique'],columns:['Bien','Moyen','À améliorer'],required:true},{key:'score',label:'Ta note',kind:'rating10',required:true}];
+ await db.query("select crm_survey_save_form($1,2026,'visiteur',0,$2)",[wid,schema]);
+ await assert.rejects(db.query("select crm_survey_save_form($1,2026,'vip',0,$2)",[wid,[{...schema[0],rows:['Accueil','Accueil']}]]),e=>e.code==='22023');
+ await db.exec('reset role');await db.exec('set role anon');
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{experience:{Accueil:'Bien'},score:10}]),e=>e.code==='22023');
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{experience:{Accueil:'Bien',Signalétique:'Moyen',Inconnue:'Bien'},score:10}]),e=>e.code==='22023');
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{experience:{Accueil:'Bien',Signalétique:'Moyen'},score:11}]),e=>e.code==='22023');
+ await db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{experience:{Accueil:'Bien',Signalétique:'Moyen'},score:10}]);
+ await db.exec('reset role');await db.exec('set role authenticated');
+ const rows=(await db.query('select crm_survey_results($1,2026) as result',[wid])).rows[0].result;
+ assert.equal(rows[0].answers.experience.Signalétique,'Moyen');
+ assert.ok(buildSurveyCSV(rows).includes('Ton expérience — Accueil'));
+ assert.ok(buildSurveyCSV(rows).includes('Ton expérience — Signalétique'));
+ assert.ok(validateAnswers('visiteur',rows[0].answers,schema));
+ assert.ok(!validateAnswers('visiteur',{experience:{Accueil:'Bien'},score:10},schema));
+ }finally{await db.close()}});
 test('liens millésimés : logo et réponses restent dans la bonne année',async()=>{const db=await setup();try{
  await db.exec(`alter table crm_editions add column closed_at timestamptz;
  create table crm_settings(workspace_id uuid,edition_year integer,id text,payload jsonb);
