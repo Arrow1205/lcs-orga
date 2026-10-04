@@ -21,7 +21,7 @@ test('questionnaire : embranchement exposant et regroupement de paraphrases',()=
  assert.ok(validateAnswers('visiteur',{community:'Basket',duration:'1 à 2 heures',purchase:'Non',satisfaction:0,returnIntent:'Oui'}));
  assert.ok(!validateAnswers('exposant',{participation:'Exposant',setup:3,attendance:4,value:4,roi:2,satisfaction:4,returnIntent:'Oui'}));
  assert.ok(validateAnswers('exposant',{participation:'Partenaire',setup:3,attendance:4,value:4,roi:2,satisfaction:4,returnIntent:'Oui'}));
- for(const phrase of ['Trop de monde dans les allées','Les allées étaient pleines','L’affluence était trop forte'])assert.ok(themesFor(phrase).includes('Circulation et affluence'));
+ for(const phrase of ['Trop de monde dans les allées','Les allées étaient pleines','L’affluence était trop forte'])assert.ok(themesFor(phrase).includes('Forte affluence'));
  assert.equal(surveyStats([{answers:{satisfaction:0}},{answers:{satisfaction:5}}]).average,2.5);
 });
 test('dashboard visiteur publié : communautés multiples, ville normalisée, grille et note sur 10',()=>{

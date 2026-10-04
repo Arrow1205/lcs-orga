@@ -1,22 +1,13 @@
 import {surveyLink} from './routes.js';
 import {visitorFeedbackMarkup,answerFor,questionFor,communityValues,matchesCommunity} from './visitor-feedback.js';
-const themeRules={
- 'Circulation et affluence':[/foule/,/monde/,/allee/,/circul/,/serre/,/bond[eé]/,/affluen/,/place pour march/],
- 'Attente et entrée':[/attente/,/queue/,/entr[eé]e/,/contr[oô]le/,/billet/],
- 'Prix et valeur':[/prix/,/cher/,/tarif/,/budget/,/rentab/,/co[uû]t/],
- 'Offre et exposants':[/exposant/,/stand/,/choix/,/vari[eé]t[eé]/,/produit/,/carte/],
- 'Zones et signalétique':[/zone/,/signal/,/orientation/,/trouv/,/plan/],
- 'Animations':[/anima/,/d[eé]dicace/,/conf[eé]renc/,/activit/],
- 'Confort et restauration':[/chaleur/,/toilette/,/repas/,/boisson/,/restaur/,/bruit/,/assis/]
-};
-export function normalizeVerbatim(text){return String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
-export function themesFor(text){const normalized=normalizeVerbatim(text);return Object.entries(themeRules).filter(([,rules])=>rules.some(re=>re.test(normalized))).map(([name])=>name).concat(Object.values(themeRules).some(rules=>rules.some(re=>re.test(normalized)))?[]:['Autres retours']);}
+import {themesFor} from './feedback-themes.js';
+export {themesFor,normalizeVerbatim} from './feedback-themes.js';
 export function surveyStats(rows){
  const scale=rows.some(x=>questionFor(x,'satisfaction')?.kind==='rating10')?10:5;
  const ratings=rows.map(x=>{const n=Number(answerFor(x,'satisfaction')),max=questionFor(x,'satisfaction')?.kind==='rating10'?10:5;return Number.isInteger(n)&&n>=0&&n<=max?n*scale/max:null}).filter(n=>n!==null);
  const average=ratings.length?ratings.reduce((a,b)=>a+b,0)/ratings.length:null;
  const count=(key,value)=>rows.filter(x=>answerFor(x,key)===value).length;
- const themes={};for(const row of rows)for(const field of ['highlights','improvements']){const feedback=answerFor(row,field);if(typeof feedback!=='string'||!feedback.trim())continue;for(const name of themesFor(feedback)){const key=field+':'+name;themes[key]??={name,field,count:0,samples:[]};themes[key].count++;if(themes[key].samples.length<5)themes[key].samples.push(feedback);}}
+ const themes={};for(const row of rows)for(const field of ['highlights','improvements']){const feedback=answerFor(row,field);if(typeof feedback!=='string'||!feedback.trim())continue;for(const name of themesFor(feedback,field)){const key=field+':'+name;themes[key]??={name,field,count:0,samples:[]};themes[key].count++;if(themes[key].samples.length<5)themes[key].samples.push(feedback);}}
  return {total:rows.length,average,scale,ratings:ratings.length,returnYes:count('returnIntent','Oui'),purchases:count('purchase','Oui'),themes:Object.values(themes).sort((a,b)=>b.count-a.count)};
 }
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
