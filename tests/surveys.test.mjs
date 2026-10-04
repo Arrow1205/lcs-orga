@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+import {questions,validateAnswers} from '../src/survey-schema.js';
+import {surveyStats,themesFor} from '../src/survey-results.js';
+const wid='10000000-0000-0000-0000-000000000001',uid='00000000-0000-0000-0000-000000000001';
+const migration=await readFile(new URL('../supabase/migrations/009_surveys.sql',import.meta.url),'utf8');
+async function setup(){const db=new PGlite();await db.exec(`create role anon;create role authenticated;create schema auth;
+create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+create table crm_workspaces(id uuid primary key,name text,created_at timestamptz default now());
+create table crm_members(workspace_id uuid,user_id uuid,role text);
+create table crm_editions(workspace_id uuid,year integer,primary key(workspace_id,year));
+create function crm_has_role(w text,roles text[]) returns boolean language sql stable security definer set search_path='' as $$select exists(select 1 from public.crm_members where workspace_id::text=w and user_id=auth.uid() and role=any(roles))$$;
+insert into auth.users values('${uid}');insert into crm_workspaces(id,name) values('${wid}','LCS');insert into crm_editions values('${wid}',2026);insert into crm_members values('${wid}','${uid}','admin');
+select set_config('request.jwt.claim.sub','${uid}',false);`);await db.exec(migration);return db;}
+test('questionnaire : embranchement exposant et regroupement de paraphrases',()=>{
+ assert.ok(questions.exposant.at(-1).key==='identity');
+ assert.ok(validateAnswers('visiteur',{community:'Basket',duration:'1 à 2 heures',purchase:'Non',satisfaction:0,returnIntent:'Oui'}));
+ assert.ok(!validateAnswers('exposant',{participation:'Exposant',setup:3,attendance:4,value:4,roi:2,satisfaction:4,returnIntent:'Oui'}));
+ assert.ok(validateAnswers('exposant',{participation:'Partenaire',setup:3,attendance:4,value:4,roi:2,satisfaction:4,returnIntent:'Oui'}));
+ for(const phrase of ['Trop de monde dans les allées','Les allées étaient pleines','L’affluence était trop forte'])assert.ok(themesFor(phrase).includes('Circulation et affluence'));
+ assert.equal(surveyStats([{answers:{satisfaction:0}},{answers:{satisfaction:5}}]).average,2.5);
+});
+test('soumission publique anonyme, lecture membres et isolation par année',async()=>{const db=await setup();try{
+ await db.exec('set role anon');
+ assert.equal((await db.query("select crm_public_survey_info('lcs') as result")).rows[0].result.year,2026);
+ const answers={community:'Basket',duration:'1 à 2 heures',purchase:'Non',satisfaction:0,returnIntent:'Oui',improvements:'Trop de monde dans les allées'};
+ await db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[answers]);
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2025,'visiteur',$1)",[answers]),e=>e.code==='22023');
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{...answers,identity:'un nom'}]),e=>e.code==='22023');
+ await assert.rejects(db.query('select * from crm_survey_responses'),e=>e.code==='42501');
+ await assert.rejects(db.query(`select crm_survey_results('${wid}',2026)`),e=>e.code==='42501');
+ await db.exec('reset role');await db.exec('set role authenticated');
+ const records=(await db.query('select crm_survey_results($1,2026) as result',[wid])).rows[0].result;
+ assert.equal(records.length,1);assert.equal(records[0].answers.satisfaction,0);
+ await db.exec('reset role');await db.exec('create table if not exists dummy(x integer)');
+ await db.query('insert into crm_editions values($1,2027)',[wid]);await db.exec('set role anon');
+ assert.equal((await db.query("select crm_public_survey_info('lcs') as result")).rows[0].result.year,2027);
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[answers]),e=>e.code==='22023');
+ }finally{await db.close()}});
