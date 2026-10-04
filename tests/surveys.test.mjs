@@ -115,3 +115,18 @@ test('logo annuel public, upload réservé aux membres de l’édition ouverte',
  await db.exec('reset role');await db.query(`update crm_editions set closed_at=now() where workspace_id='${wid}' and year=2026`);await db.exec('set role authenticated');
  await assert.rejects(db.query("insert into storage.objects values('lcs-branding',$1)",[`${wid}/2026/00000000-0000-0000-0000-000000000004.png`]),e=>e.code==='42501');
  }finally{await db.close()}});
+test('dupliquer un questionnaire vers une autre année ne copie aucune réponse',async()=>{const db=await setup();try{
+ await db.exec('alter table crm_editions add column closed_at timestamptz');
+ await db.exec(editorMigration);
+ await db.exec('set role anon');
+ await db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{community:'Basket',duration:'1 à 2 heures',purchase:'Oui',satisfaction:5,returnIntent:'Oui'}]);
+ await db.exec('reset role');
+ await db.query('insert into crm_editions(workspace_id,year) values($1,2027)',[wid]);
+ await db.exec('set role authenticated');
+ const schema=structuredClone(questions.visiteur);
+ await db.query("select crm_survey_save_form($1,2027,'visiteur',0,$2)",[wid,schema]);
+ const target=(await db.query('select crm_survey_form_admin($1,2027) as forms',[wid])).rows[0].forms;
+ assert.deepEqual(target.visiteur.questions,schema);
+ assert.equal((await db.query('select crm_survey_results($1,2027) as rows',[wid])).rows[0].rows.length,0);
+ assert.equal((await db.query('select crm_survey_results($1,2026) as rows',[wid])).rows[0].rows.length,1);
+ }finally{await db.close()}});

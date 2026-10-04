@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {JSDOM} from 'jsdom';
+import {startCRM} from '../src/crm.js';
+import {questions} from '../src/survey-schema.js';
+test('choix de l’année et duplication des seules questions',async()=>{
+ const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+ const dom=new JSDOM(html,{url:'https://crm.test/'}),calls=[];
+ Object.assign(globalThis,{window:dom.window,document:dom.window.document,FormData:dom.window.FormData,Event:dom.window.Event,scrollTo:()=>{},alert:()=>{},confirm:()=>true});
+ const cloud={year:2026,role:'editor',copyYears:[2027],save:()=>{},loadSurveys:async()=>({rows:[{id:'a',type:'visiteur',answers:{satisfaction:5}}],forms:{}}),duplicateSurveyForm:async(...args)=>{calls.push(args);return {exists:false,version:1}}};
+ startCRM(null,cloud);
+ document.querySelector('[data-view="surveys"]').click();
+ await new Promise(resolve=>setTimeout(resolve,0));
+ const target=document.querySelector('[data-survey-target="visiteur"]');
+ assert.ok(target);target.value='2027';
+ document.querySelector('[data-survey-duplicate="visiteur"]').click();
+ await new Promise(resolve=>setTimeout(resolve,0));
+ assert.equal(calls.length,1);
+ assert.equal(calls[0][0],'visiteur');assert.equal(calls[0][1],2027);
+ assert.deepEqual(calls[0][2],questions.visiteur);
+ assert.equal(Object.prototype.hasOwnProperty.call(calls[0][2],'answers'),false);
+ dom.window.close();
+});
