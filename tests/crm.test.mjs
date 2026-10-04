@@ -9,7 +9,10 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  const saved=[];
  Object.assign(globalThis,{window:dom.window,document:dom.window.document,FormData:dom.window.FormData,Event:dom.window.Event,scrollTo:()=>{},alert:()=>{},confirm:()=>true});
  const backend={owners:['Alice'],save:state=>saved.push(structuredClone(state)),saveOwners:async(name,remove)=>{backend.owners=remove?backend.owners.filter(x=>x!==name):[...backend.owners,name];return [...backend.owners]},putBlob:async()=>{},getBlob:async()=>new Blob(['test'],{type:'application/pdf'})};const api=startCRM(null,backend);
+ assert.equal(dom.window.location.pathname,'/vue-ensemble');
  document.querySelector('[data-view="tasks"]').click();
+ assert.equal(dom.window.location.pathname,'/taches-planning');
+ assert.equal(dom.window.location.search,'?year=2026');
  document.querySelector('[data-add="tasks"]').click();
  const form=document.getElementById('editForm');form.elements.title.value='Test cloud';
  form.dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));

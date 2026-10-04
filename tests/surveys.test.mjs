@@ -92,6 +92,35 @@ test('éditeur : ajout, options, ordre et affichage filtré',async()=>{
  dom.window.close();
 });
 const brandingSQL=await readFile(new URL('../supabase/migrations/011_edition_branding.sql',import.meta.url),'utf8');
+const yearLinksSQL=await readFile(new URL('../supabase/migrations/012_survey_year_links.sql',import.meta.url),'utf8');
+test('liens millésimés : logo et réponses restent dans la bonne année',async()=>{const db=await setup();try{
+ await db.exec(`alter table crm_editions add column closed_at timestamptz;
+ create table crm_settings(workspace_id uuid,edition_year integer,id text,payload jsonb);
+ create schema storage;
+ create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+ create table storage.objects(bucket_id text,name text);
+ create function storage.foldername(path text) returns text[] language sql immutable as $$select string_to_array(regexp_replace(path,'/[^/]*$',''),'/')$$;
+ alter table storage.objects enable row level security;
+ grant usage on schema storage to authenticated;
+ grant select on crm_editions to authenticated;
+ grant insert on storage.objects to authenticated;
+ insert into crm_settings values('${wid}',2026,'main','{"logoPath":"${wid}/2026/logo.png"}');`);
+ await db.exec(editorMigration);await db.exec(brandingSQL);
+ await db.query('insert into crm_editions(workspace_id,year) values($1,2027)',[wid]);
+ await db.exec(yearLinksSQL);await db.exec('set role anon');
+ const getInfo=async(year=2026)=>(await db.query('select crm_public_survey_info($1,$2) as result',['lcs',year])).rows[0].result;
+ assert.equal((await getInfo()).logo,`${wid}/2026/logo.png`);
+ assert.equal((await getInfo(2027)).logo,null);
+ assert.equal((await db.query('select crm_public_survey_info($1,$2) as result',['lcs',null])).rows[0].result.year,2026);
+ await assert.rejects(db.query('select crm_public_survey_info($1,$2)',['lcs',2025]),e=>e.code==='22023');
+ const answers={community:'Basket',duration:'1 à 2 heures',purchase:'Non',satisfaction:5,returnIntent:'Oui'};
+ await db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[answers]);
+ await db.query("select crm_submit_survey('lcs',2027,'visiteur',$1)",[answers]);
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2025,'visiteur',$1)",[answers]),e=>e.code==='22023');
+ await db.exec('reset role');await db.exec('set role authenticated');
+ assert.equal((await db.query('select crm_survey_results($1,2026) as rows',[wid])).rows[0].rows.length,1);
+ assert.equal((await db.query('select crm_survey_results($1,2027) as rows',[wid])).rows[0].rows.length,1);
+ }finally{await db.close()}});
 test('logo annuel public, upload réservé aux membres de l’édition ouverte',async()=>{const db=await setup();try{
  await db.exec(`alter table crm_editions add column closed_at timestamptz;
  create table crm_settings(workspace_id uuid,edition_year integer,id text,payload jsonb);

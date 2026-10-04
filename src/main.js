@@ -1,3 +1,4 @@
+import {yearFromQuery} from './routes.js';
 import {createClient} from '@supabase/supabase-js';
 import {startCRM} from './crm.js';
 import {mountEditions} from './editions.js';
@@ -54,9 +55,9 @@ async function boot(){
  else closureSupported=!editionsError;
  if(editionsError)throw editionsError;
  const years=editions.map(e=>Number(e.year));if(!years.length)throw Error('Aucune édition : appliquer la migration 003.');
- const yearKey='lcs-active-edition:'+workspaceId+':'+userId,preferred=Number(sessionStorage.getItem(yearKey));editionYear=years.includes(preferred)?preferred:Math.max(...years);closed=!!editions.find(e=>Number(e.year)===editionYear)?.closed_at;
+ const yearKey='lcs-active-edition:'+workspaceId+':'+userId,requestedYear=yearFromQuery(location.search),preferred=requestedYear||Number(sessionStorage.getItem(yearKey));editionYear=years.includes(preferred)?preferred:Math.max(...years);closed=!!editions.find(e=>Number(e.year)===editionYear)?.closed_at;
  const initial=await loadState();sharedOwners=await loadOwners();
- const selectYear=year=>{sessionStorage.setItem(yearKey,String(year));location.reload();};
+ const selectYear=year=>{sessionStorage.setItem(yearKey,String(year));const next=new URL(location.href);next.searchParams.set('year',String(year));location.assign(next.href);};
  mountEditions({host:$('editionPicker'),years,selected:editionYear,canCreate:role!=='viewer'&&!closed,onSelect:selectYear,
   canLeave:()=>{if(sync?.dirty||busy||$('overlay').innerHTML){alert('Enregistre ou ferme la fiche ouverte et attends la fin de la synchronisation avant de changer d’année.');return false;}return true;},
   onCreate:async year=>{busy=true;try{const {error}=await client.rpc('crm_create_edition',{p_workspace:workspaceId,p_year:year});if(error)throw error;selectYear(year);}finally{busy=false;}}
