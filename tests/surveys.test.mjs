@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {questions,validateAnswers} from '../src/survey-schema.js';
 import {surveyStats,themesFor} from '../src/survey-results.js';
+import {visitorStats,visitorFeedbackMarkup,normalizeCity,matchesCommunity} from '../src/visitor-feedback.js';
 import {buildSurveyCSV} from '../src/survey-editor.js';
 const wid='10000000-0000-0000-0000-000000000001',uid='00000000-0000-0000-0000-000000000001';
 const migration=await readFile(new URL('../supabase/migrations/009_surveys.sql',import.meta.url),'utf8');
@@ -22,6 +23,31 @@ test('questionnaire : embranchement exposant et regroupement de paraphrases',()=
  assert.ok(validateAnswers('exposant',{participation:'Partenaire',setup:3,attendance:4,value:4,roi:2,satisfaction:4,returnIntent:'Oui'}));
  for(const phrase of ['Trop de monde dans les allées','Les allées étaient pleines','L’affluence était trop forte'])assert.ok(themesFor(phrase).includes('Circulation et affluence'));
  assert.equal(surveyStats([{answers:{satisfaction:0}},{answers:{satisfaction:5}}]).average,2.5);
+});
+test('dashboard visiteur publié : communautés multiples, ville normalisée, grille et note sur 10',()=>{
+ const questions=[{key:'q_comm',label:'A quelle(s) communauté(s) appartiens-tu ?',kind:'checkbox'},
+  {key:'q_age',label:"Quel est ta tranche d'âge ?",kind:'dropdown'},
+  {key:'q_gender',label:'Quel est ton genre ?',kind:'choice'},
+  {key:'q_city',label:'De quelle ville viens-tu ?',kind:'short'},
+  {key:'q_grid',label:'Que penses-tu de',kind:'grid',rows:["la DATE de l'évènement",'La SALLE, le lieu'],columns:['Très satisfaisant','Satisfaisant',"Je n'ai pas vu"]},
+  {key:'q_score',label:'Quelle note globale donnerais-tu au salon ?',kind:'rating10'},
+  {key:'q_return',label:'Aurais-tu envie de revenir à la prochaine édition ?',kind:'choice'},
+  {key:'q_dream',label:"C'est ton moment ! Qu'est-ce que tu RÊVES D'AVOIR pour l'édition 2027 ?",kind:'text'}];
+ const row=(city,score,communities)=>({type:'visiteur',created_at:'2026-10-04T12:00:00Z',questions,answers:{q_comm:communities,q_age:'25 - 29 ans',q_gender:'Femme',q_city:city,q_grid:{"la DATE de l'évènement":'Très satisfaisant','La SALLE, le lieu':'Satisfaisant'},q_score:score,q_return:'Oui',q_dream:'Plus de cartes'}});
+ const rows=[row('Boulogne sur mer',10,['Basket','Tcg (Pokemon, Lorcana, Magic ...)']),row('Boulogne-sur-mer',8,['Basket']),row('BOULOGNE SUR MER',6,['Soccer'])];
+ const stats=visitorStats(rows,questions);
+ assert.equal(normalizeCity('Boulogne-Sur-Mer'),normalizeCity('Boulogne sur mer'));
+ assert.equal(stats.cities[0].count,3);
+ assert.equal(stats.cities.length,1);
+ assert.equal(stats.score,8);
+ assert.deepEqual(stats.distributions.community,[['Basket',2],['Soccer',1],['TCG',1]]);
+ assert.equal(stats.grid[0].counts[0].count,3);
+ assert.equal(matchesCommunity(rows[0],'TCG'),true);
+ const markup=visitorFeedbackMarkup(rows,questions);
+ assert.match(markup,/Top 10 des villes/);
+ assert.match(markup,/Tranches d’âge/);
+ assert.match(markup,/Souhaits pour la prochaine édition/);
+ assert.match(markup,/8,0\/10/);
 });
 test('soumission publique anonyme, lecture membres et isolation par année',async()=>{const db=await setup();try{
  await db.exec('set role anon');
@@ -110,6 +136,11 @@ test('éditeur : ajout, options, ordre et affichage filtré',async()=>{
  const rows=[{id:'1',type:'visiteur',created_at:'2026-10-04T00:00:00Z',answers:{community:'Basket',satisfaction:5,highlights:'Bonne ambiance'}},{id:'2',type:'visiteur',created_at:'2026-10-04T00:00:00Z',answers:{community:'TCG',satisfaction:1,improvements:'Trop de monde'}}];
  assert.match(surveyResultsMarkup(rows,'all',2026,{community:'Basket'}),/Vue Basket · 1 réponses/);
  assert.doesNotMatch(surveyResultsMarkup(rows,'all',2026,{community:'Basket'}),/Trop de monde/);
+ const unit=surveyResultsMarkup(rows,'responses',2026,{community:'Basket',ratingSort:'high',responseType:'visiteur'});
+ assert.match(unit,/Trier par note du salon/);
+ assert.match(unit,/Bonne ambiance/);
+ assert.doesNotMatch(unit,/Trop de monde/);
+ assert.doesNotMatch(surveyResultsMarkup(rows,'visiteur',2026),/<h2>Réponses individuelles<\/h2>/);
  dom.window.close();
 });
 const brandingSQL=await readFile(new URL('../supabase/migrations/011_edition_branding.sql',import.meta.url),'utf8');
