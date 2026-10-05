@@ -6,10 +6,13 @@ import {surveyResultsMarkup} from '../src/survey-results.js';
 const questions=[
  {key:'q_age',label:'Quelle est ta tranche d’âge ?',kind:'dropdown'},
  {key:'q_gender',label:'Quel est ton genre ?',kind:'choice'},
- {key:'q_interest',label:'Quel type de cartes recherches-tu ?',kind:'choice'},
+ {key:'q_interest',label:'Qu’est ce que tu as acheté ?',kind:'checkbox'},
+ {key:'q_spend',label:'Combien tu as dépensé ?',kind:'short'},
+ {key:'q_companions',label:'Tu es venu seul ou accompagné ?',kind:'choice'},
+ {key:'q_improvements',label:'Qu’est ce qui t’a gêné ou que tu aimerais améliorer ?',kind:'text'},
  {key:'q_identity',label:'Nom de ta société',kind:'short'}
 ];
-function visitor(community,age,gender,interest,extra={}){return {type:'visiteur',questions,answers:{community,returnIntent:'Oui',q_age:age,q_gender:gender,q_interest:interest,q_identity:'Non publié',...extra}}}
+function visitor(community,age,gender,interest,extra={}){return {type:'visiteur',questions,answers:{community,returnIntent:'Oui',q_age:age,q_gender:gender,q_interest:Array.isArray(interest)?interest:[interest],q_spend:'50 €',q_companions:'avec ses enfants',q_improvements:'Trop de monde dans les allées',q_identity:'Non publié',...extra}}}
 
 test('les profils globaux et communautaires découlent des réponses et gardent des effectifs vérifiables',()=>{
  const rows=[
@@ -34,7 +37,11 @@ test('les profils globaux et communautaires découlent des réponses et gardent 
  assert.ok(result.global.every(p=>p.count>=2));
  assert.ok(result.global.flatMap(p=>p.facts).every(f=>f.count>=2&&f.count<=f.answered));
  const html=personasMarkup(rows,true);
- assert.match(html,/25–34/);
+ assert.match(html,/Alex/);
+ assert.match(html,/passionné de/);
+ assert.match(html,/panier moyen 50 €/);
+ assert.match(html,/malgré/);
+ assert.match(html,/Friction principale/);
  assert.doesNotMatch(html,/Non publié/);
  assert.match(html,/2\/2 réponses renseignées/);
 });
