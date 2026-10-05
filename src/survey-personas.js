@@ -3,7 +3,7 @@ import {normalizeVerbatim,groupComments} from './feedback-themes.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const typeNames={visiteur:'Visiteur',vip:'VIP / Early Access',exposant:'Exposant / partenaire'};
-const known=[['returnIntent','Envie de revenir'],['age','Âge'],['gender','Genre'],['ticket','Type de visiteur'],['purchase','Achats'],['duration','Temps passé'],['discovery','Découverte du salon'],['spend','Panier moyen'],['companions','Contexte de venue'],['satisfaction','Satisfaction globale']];
+const known=[['returnIntent','Envie de revenir'],['age','Âge'],['gender','Genre'],['ticket','Type de visiteur'],['purchase','Achats'],['duration','Temps passé'],['discovery','Découverte du salon'],['spend','Panier moyen'],['companions','Contexte de venue'],['satisfaction','Satisfaction globale'],['highlights','Point fort'],['improvements','Point de friction']];
 const fallback=[['premiumType','Billet'],['participation','Participation'],['vendorType','Type d’exposant'],['zone','Zone'],['premiumValue','Valeur du billet']];
 const excluded=/\b(nom|prenom|identite|societe|telephone|email|mail|contact|adresse)\b/;
 const scalar=value=>typeof value==='string'&&value.trim()?value.trim():typeof value==='number'&&Number.isFinite(value)?String(value):null;
@@ -90,8 +90,11 @@ function facts(records){
  }).filter(Boolean).sort((a,b)=>a.priority-b.priority||b.count-a.count).slice(0,14);
 }
 function moneyValue(value){
- const match=String(value??'').replace(/,/g,'.').match(/\d+(?:\.\d+)?/);
- return match?Number(match[0]):null;
+ const text=String(value??'').replace(/,/g,'.');
+ const nums=[...text.matchAll(/\d+(?:\.\d+)?/g)].map(x=>Number(x[0])).filter(Number.isFinite);
+ if(!nums.length)return null;
+ if(/plus|\+/.test(text))return nums[0];
+ return nums.length>=2?(nums[0]+nums[1])/2:nums[0];
 }
 function averageSpend(records){
  const values=records.map(record=>moneyValue(rawValue(record,'spend'))).filter(value=>Number.isFinite(value));
@@ -103,7 +106,11 @@ function phraseJoin(values){
  if(unique.length<=1)return unique[0]||'';
  return `${unique.slice(0,-1).join(', ')} et ${unique.at(-1)}`;
 }
-const names=['Alex','Géraldine','Samir','Camille','Nora','Julien','Inès','Thomas','Lina','Mehdi','Laura','Maxime'];
+const maleNames=['Alex','Samir','Julien','Thomas','Mehdi','Maxime'];
+const femaleNames=['Géraldine','Camille','Nora','Inès','Lina','Laura'];
+const neutralNames=['Alex','Camille','Samir','Nora','Julien','Inès','Thomas','Lina','Mehdi','Laura'];
+const maleImages=['/personas/men1.png','/personas/men2.png','/personas/men3.png'];
+const femaleImages=['/personas/women1.png','/personas/women2.png','/personas/women3.png'];
 function friction(records){
  const comments=records.map(record=>answerFor(record.row,'improvements')).filter(value=>typeof value==='string'&&value.trim());
  if(!comments.length)return null;
@@ -119,37 +126,68 @@ function returnPhrase(value){
  if(normalized==='non')return 'n’est pas encore convaincu de revenir';
  return value?`a répondu « ${value} » sur son envie de revenir`:'';
 }
-function extraNarrativeFacts(records,excludedKeys){
- return facts(records).filter(fact=>!excludedKeys.has(fact.key)&&!['Formulaire','Genre'].includes(fact.label)).slice(0,3).map(fact=>`${fact.label.toLowerCase()} : ${fact.value}`);
+function ageFromBucket(value,index){
+ const nums=[...String(value??'').matchAll(/\d+/g)].map(x=>Number(x[0]));
+ if(nums.length>=2){const min=nums[0],max=nums[1];return Math.min(max,Math.max(min,min+Math.round((max-min)*((index%5)+1)/6)));}
+ return nums[0]||null;
 }
-function narrative(records,index){
- const community=dominant(records,'community'),age=dominant(records,'age'),companions=dominant(records,'companions'),purchase=dominant(records,'purchase'),returnIntent=dominant(records,'returnIntent'),ticket=dominant(records,'ticket'),duration=dominant(records,'duration'),discovery=dominant(records,'discovery'),satisfaction=dominant(records,'satisfaction'),spend=averageSpend(records),issue=friction(records);
- const used=new Set(['community','age','companions','purchase','returnIntent','ticket','duration','discovery','satisfaction','spend']);
- const parts=[];
- const name=names[index%names.length];
- let intro=`${name}`;
- if(age)intro+=` · ${age.value}`;
- if(community)intro+=` · passionné de ${community.value}`;
- parts.push(intro);
+function profileName(gender,index){
+ const n=normalizeVerbatim(gender);
+ if(n.includes('femme'))return femaleNames[index%femaleNames.length];
+ if(n.includes('homme'))return maleNames[index%maleNames.length];
+ return neutralNames[index%neutralNames.length];
+}
+function profileImage(gender,index){
+ const n=normalizeVerbatim(gender);
+ if(n.includes('femme'))return femaleImages[index%femaleImages.length];
+ if(n.includes('homme'))return maleImages[index%maleImages.length];
+ return [...maleImages,...femaleImages][index%6];
+}
+function discoveryPhrase(value){
+ const n=normalizeVerbatim(value);
+ if(/deja venu|precedente edition|edition precedente|lan dernier|annee derniere/.test(n))return 'a connu le salon lors d’une édition précédente';
+ if(/instagram|insta/.test(n))return 'a découvert le salon sur Instagram';
+ if(/bouche a oreille|ami|amis|proche/.test(n))return 'a découvert le salon par bouche-à-oreille';
+ if(/affiche|flyer/.test(n))return 'a découvert le salon grâce à la communication locale';
+ return value?`a découvert le salon via ${value}`:'';
+}
+function textTheme(records,field,kind){
+ const values=records.map(record=>answerFor(record.row,field)).filter(value=>typeof value==='string'&&value.trim());
+ const group=groupComments(values,kind)[0];
+ const quote=(group?.quotes?.[0]?.text||values[0]||'').replace(/[.!?]+$/,'');
+ return {theme:group?.name||'',quote,count:group?.count||values.length,total:values.length};
+}
+function personaText(records,index){
+ const gender=dominant(records,'gender'),community=dominant(records,'community'),age=dominant(records,'age'),companions=dominant(records,'companions'),purchase=dominant(records,'purchase'),returnIntent=dominant(records,'returnIntent'),duration=dominant(records,'duration'),discovery=dominant(records,'discovery'),spend=averageSpend(records);
+ const name=profileName(gender?.value,index),exactAge=ageFromBucket(age?.value,index);
+ const intro=[name,exactAge?`${exactAge} ans`:age?.value,community?`fan de ${community.value}`:'visiteur du salon'].filter(Boolean).join(', ');
  const details=[];
  if(companions)details.push(String(companions.value).toLowerCase().startsWith('venu')?companions.value:`venu ${companions.value.toLowerCase()}`);
- else if(ticket)details.push(ticket.value);
- if(duration)details.push(`reste ${duration.value.toLowerCase()} sur le salon`);
- if(spend!==null)details.push(`panier moyen ${spend} €`);
- if(purchase)details.push(`achète ${phraseJoin(valuesForGroup(records,'purchase').slice(0,3)).toLowerCase()}`);
- if(discovery)details.push(`a découvert le salon via ${discovery.value}`);
- if(satisfaction)details.push(`note l’expérience ${satisfaction.value}`);
- details.push(...extraNarrativeFacts(records,used));
+ if(duration)details.push(`reste ${duration.value.toLowerCase()} sur place`);
+ if(spend!==null)details.push(`avec un panier moyen estimé à ${spend} €`);
+ if(purchase)details.push(`achète surtout ${phraseJoin(valuesForGroup(records,'purchase').slice(0,3)).toLowerCase()}`);
+ if(discovery)details.push(discoveryPhrase(discovery.value));
  if(returnIntent)details.push(returnPhrase(returnIntent.value));
- if(details.length)parts.push(details.join(', '));
- if(issue?.quote)parts.push(`malgré « ${issue.quote} »`);
- return parts.join(', ')+'.';
+ const sentence=details.join(', ');
+ return sentence?`${intro}. ${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`:`${intro}.`;
+}
+function motivation(records){
+ const positive=textTheme(records,'highlights','highlights');
+ if(positive.quote)return positive.quote;
+ const purchase=dominant(records,'purchase'),returnIntent=dominant(records,'returnIntent');
+ if(purchase&&returnIntent)return `Trouver ${purchase.value.toLowerCase()} et profiter d’un événement qui donne envie de revenir.`;
+ if(purchase)return `Trouver ${purchase.value.toLowerCase()} sur place.`;
+ return 'Profiter du salon et rencontrer la communauté hobby.';
+}
+function frustration(records){
+ const issue=textTheme(records,'improvements','improvements');
+ return issue.quote||'Aucune frustration dominante ne ressort clairement dans ce groupe.';
 }
 function valuesForGroup(records,key){
  const {entries}=counts(records,key);
  return entries.map(([value])=>value);
 }
-function persona(group,index,scope='global'){return {id:`${scope}-${index+1}`,number:index+1,name:names[index%names.length],count:group.length,facts:facts(group),summary:narrative(group,index),friction:friction(group)};}
+function persona(group,index,scope='global'){const gender=dominant(group,'gender');return {id:`${scope}-${index+1}`,number:index+1,name:profileName(gender?.value,index),image:profileImage(gender?.value,index),count:group.length,facts:facts(group),summary:personaText(group,index),motivation:motivation(group),frustration:frustration(group)};}
 export function generatePersonas(rows){
  const records=rows.filter(row=>['visiteur','vip','exposant'].includes(row.type)).map(row=>({row,values:responses(row)}));
  const communities=[...new Set(records.flatMap(record=>communityValues(record.row)))].sort((a,b)=>a.localeCompare(b,'fr'));
@@ -162,7 +200,7 @@ export function generatePersonas(rows){
 
 function profileCard(profile,{canEdit=false,overrides={},editing=''}){
  const summary=overrides[profile.id]??profile.summary;
- return `<article class="panel persona-card" data-persona-id="${esc(profile.id)}"><div class="panel-head"><h3>${esc(profile.name)}</h3><div class="actions"><strong>${profile.count} réponse${profile.count>1?'s':''}</strong>${canEdit?`<button type="button" class="btn small" data-persona-edit="${esc(profile.id)}">Modifier</button><button type="button" class="btn small danger" data-persona-delete="${esc(profile.id)}">Supprimer</button>`:''}</div></div>${editing===profile.id?`<div class="persona-edit"><textarea rows="5" data-persona-draft="${esc(profile.id)}">${esc(summary)}</textarea><div class="actions"><button type="button" class="btn small" data-persona-cancel>Annuler</button><button type="button" class="btn small primary" data-persona-save="${esc(profile.id)}">Enregistrer</button></div></div>`:`<p class="persona-summary">${esc(summary)}</p>`}<dl>${profile.facts.map(fact=>`<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)} <small>${fact.count}/${fact.answered} réponses renseignées</small></dd></div>`).join('')}${profile.friction?`<div><dt>Friction principale</dt><dd>${esc(profile.friction.theme)} <small>${profile.friction.count}/${profile.friction.total} retours libres</small></dd></div>`:''}</dl></article>`;
+ return `<article class="panel persona-card persona-card-visual" data-persona-id="${esc(profile.id)}"><div class="persona-hero"><img src="${esc(profile.image)}" alt="Illustration persona"><div><span>${profile.count} réponse${profile.count>1?'s':''} regroupée${profile.count>1?'s':''}</span><h3>${esc(profile.name)}</h3></div></div>${editing===profile.id?`<div class="persona-edit"><textarea rows="5" data-persona-draft="${esc(profile.id)}">${esc(summary)}</textarea><div class="actions"><button type="button" class="btn small" data-persona-cancel>Annuler</button><button type="button" class="btn small primary" data-persona-save="${esc(profile.id)}">Enregistrer</button></div></div>`:`<p class="persona-summary">${esc(summary)}</p>`}<div class="persona-insights"><div><strong>Motivation</strong><p>${esc(profile.motivation)}</p></div><div><strong>Frustration</strong><p>${esc(profile.frustration)}</p></div></div>${canEdit?`<div class="actions persona-actions"><button type="button" class="btn small" data-persona-edit="${esc(profile.id)}">Modifier</button><button type="button" class="btn small danger" data-persona-delete="${esc(profile.id)}">Supprimer</button></div>`:''}</article>`;
 }
 function cards(profiles,target,options){
  const visible=profiles.filter(profile=>!options.deleted?.has(profile.id));
@@ -172,5 +210,5 @@ function cards(profiles,target,options){
 export function personasMarkup(rows,generated=false,options={}){
  if(!generated)return `<section class="panel persona-intro"><h2>Personas issus des retours</h2><p>Génère jusqu’à 5 profils globaux et 3 profils par communauté, uniquement à partir des réponses de cette édition. Aucun comportement n’est ajouté sans réponse correspondante ; les prénoms servent seulement à rendre les profils plus lisibles.</p><button type="button" class="btn primary" data-survey-generate-personas>Générer les personas</button></section>`;
  const result=generatePersonas(rows),opts={canEdit:false,overrides:{},deleted:new Set(),editing:'',...options};
- return `<div class="persona-dashboard"><section class="panel persona-intro"><div class="panel-head"><div><h2>Personas issus des retours</h2><p class="sub">${result.total} réponse${result.total>1?'s':''} analysée${result.total>1?'s':''} · personas types composés à partir des tendances réelles.</p></div><button type="button" class="btn small" data-survey-generate-personas>Regénérer</button></div><p class="sub">Les phrases résument les tendances dominantes de chaque groupe. Tu peux modifier le texte d’une card ou supprimer une card affichée, les données détaillées restent visibles pour contrôler la base du profil.</p></section><section class="persona-section"><h2>Vue globale <small>· ${result.global.filter(profile=>!opts.deleted.has(profile.id)).length}/5</small></h2>${cards(result.global,5,opts)}</section>${result.communities.map(community=>`<section class="persona-section"><h2>${esc(community.name)} <small>· ${community.profiles.filter(profile=>!opts.deleted.has(profile.id)).length}/3 profils · ${community.total} réponses</small></h2>${cards(community.profiles,3,opts)}</section>`).join('')||'<section class="panel"><p class="sub">Aucune communauté renseignée dans les réponses.</p></section>'}</div>`;
+ return `<div class="persona-dashboard"><section class="panel persona-intro"><div class="panel-head"><div><h2>Personas issus des retours</h2><p class="sub">${result.total} réponse${result.total>1?'s':''} analysée${result.total>1?'s':''} · personas types composés à partir des tendances réelles.</p></div><button type="button" class="btn small" data-survey-generate-personas>Regénérer</button></div><p class="sub">Les personas regroupent les réponses communes de plusieurs visiteurs pour résumer les grands profils en 5 cartes. Tu peux modifier le texte ou supprimer une card affichée.</p></section><section class="persona-section"><h2>Vue globale <small>· ${result.global.filter(profile=>!opts.deleted.has(profile.id)).length}/5</small></h2>${cards(result.global,5,opts)}</section></div>`;
 }
