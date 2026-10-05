@@ -9,10 +9,10 @@ const rules={
   'Animations':[/\b(animations?|dedicaces?|activites?|conferences?)\b/]
  },
  improvements:{
-  'Forte affluence':[/\b(trop de monde|beaucoup trop de monde|foule|bonde|surpeuple|surfrequente|affluence|surcharge|embouteill|bouchon|impraticable|trop serre|manque de place|difficile de circuler|circulation difficile)\b/,/\ballees?\b.{0,35}\b(etroites?|pleines?|encombrees?|impraticables?)\b/],
+  'Forte affluence':[/\b(trop de monde|beaucoup trop de monde|foule|bonde|surpeuple|surfrequente|affluence|surcharge|embouteill|bouchon|impraticable|trop serre|manque de place|difficile de circuler|circulation difficile)\b/,/\ballees?\b.{0,35}\b(etroites?|petites?|pleines?|encombrees?|impraticables?)\b/,/^((le|du|trop de|beaucoup de) monde|trop de gens|trop de personnes)$/],
   'Attente et entrée':[/\b(attente|file d attente|faire la queue|queue|controle|billetterie)\b/],
   'Prix et valeur':[/\b(prix|cher|tarif|budget|cout|rapport qualite prix)\b/],
-  'Exposants et offre':[/\b(exposants?|stands?|choix|variete|produits?|cartes?)\b/],
+  'Exposants et offre':[/\b(pas assez|manque|peu|plus|davantage|trop peu) d? ?(exposants?|stands?|choix|variete|produits?|cartes?)\b/,/\b(diversite|variete|choix|offre)\b.{0,35}\b(exposants?|stands?|produits?|cartes?)\b/,/\b(exposants?|stands?|produits?|cartes?)\b.{0,35}\b(diversite|variete|choix|offre|manqu|cher|qualite)\b/],
   'Zones et signalétique':[/\b(zones?|signaletique|orientation|panneaux?|plan du salon)\b/],
   'Animations':[/\b(animations?|dedicaces?|activites?|conferences?)\b/],
   'Confort et restauration':[/\b(chaleur|chaud|toilettes?|repas|boissons?|restauration|bruit|assises?|sieges?|food trucks?)\b/]

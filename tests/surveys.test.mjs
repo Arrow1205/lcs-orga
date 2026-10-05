@@ -165,6 +165,18 @@ test('grille et note 0–10 : édition, réponse anonyme et export lisible',asyn
  assert.ok(validateAnswers('visiteur',rows[0].answers,schema));
  assert.ok(!validateAnswers('visiteur',{experience:{Accueil:'Bien'},score:10},schema));
  }finally{await db.close()}});
+test('sous-question conditionnelle : Oui la rend obligatoire, Non la saute',async()=>{const db=await setup();try{
+ await db.exec('alter table crm_editions add column closed_at timestamptz');
+ await db.exec(editorMigration);await db.exec(gridSQL);await db.exec('set role authenticated');
+ const schema=[{key:'bought',label:'As-tu acheté ?',kind:'choice',options:['Oui','Non'],required:true},{key:'what',label:'Quoi ?',kind:'short',required:true,showIf:{key:'bought',equals:'Oui'}},{key:'score',label:'Ta note',kind:'rating10',required:true}];
+ await db.query("select crm_survey_save_form($1,2026,'visiteur',0,$2)",[wid,schema]);
+ await assert.rejects(db.query("select crm_survey_save_form($1,2026,'vip',0,$2)",[wid,[schema[1],schema[0]]]),e=>e.code==='22023');
+ await db.exec('reset role');await db.exec('set role anon');
+ await db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{bought:'Non',score:8}]);
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{bought:'Oui',score:8}]),e=>e.code==='22023');
+ await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{bought:'Non',what:'Cartes',score:8}]),e=>e.code==='22023');
+ await db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[{bought:'Oui',what:'Cartes',score:8}]);
+ }finally{await db.close()}});
 test('liens millésimés : logo et réponses restent dans la bonne année',async()=>{const db=await setup();try{
  await db.exec(`alter table crm_editions add column closed_at timestamptz;
  create table crm_settings(workspace_id uuid,edition_year integer,id text,payload jsonb);

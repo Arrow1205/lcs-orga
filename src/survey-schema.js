@@ -41,6 +41,15 @@ export const questions={
 export function activeQuestions(type,answers,definitions=questions[type]){
  return (definitions||[]).filter(q=>!q.showIf||answers[q.showIf.key]===q.showIf.equals);
 }
+export function pruneInactiveAnswers(type,answers,definitions=questions[type]){
+ let changed;
+ do{
+  const active=new Set(activeQuestions(type,answers,definitions).map(q=>q.key));
+  changed=false;
+  for(const key of Object.keys(answers))if(!active.has(key)){delete answers[key];changed=true}
+ }while(changed);
+ return answers;
+}
 export function validateAnswers(type,answers,definitions=questions[type]){
  if(!types.includes(type)||!answers||typeof answers!=='object'||Array.isArray(answers))return false;
  const all=definitions||[];
