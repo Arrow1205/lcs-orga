@@ -46,7 +46,7 @@ test('dashboard visiteur publié : communautés multiples, ville normalisée, gr
  const markup=visitorFeedbackMarkup(rows,questions);
  assert.match(markup,/Top 10 des villes/);
  assert.match(markup,/Tranches d’âge/);
- assert.match(markup,/Souhaits pour la prochaine édition/);
+ assert.match(markup,/Q20 · Retours libres/);
  assert.match(markup,/8,0\/10/);
 });
 test('soumission publique anonyme, lecture membres et isolation par année',async()=>{const db=await setup();try{

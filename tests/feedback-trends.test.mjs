@@ -21,12 +21,13 @@ test('camemberts lisibles et tendances vérifiables dans la vue visiteurs',()=>{
  const questions=[{key:'age',label:'Quelle est ta tranche d’âge ?'},{key:'gender',label:'Quel est ton genre ?'},{key:'buy',label:'Qu’est ce que tu as acheté ?'},{key:'spend',label:'Combien as-tu dépensé ?'},{key:'duration',label:'Combien de temps es-tu resté sur le salon ?'},{key:'collection',label:'Depuis combien de temps tu collectionnes ?'},{key:'paid',label:'Es-tu prêt à payer l’entrée l’an prochain ?'},{key:'entryPrice',label:'Combien serais-tu prêt à mettre ?'}];
  const rows=[{type:'visiteur',questions,answers:{community:['Basket','Soccer'],age:'25-34',gender:'Femme',buy:['Cartes','Goodies'],spend:'100 à 150 €',duration:'2 à 3 heures',collection:'Plus de 5 ans',paid:'Oui',entryPrice:'12,50 €',returnIntent:'Oui',highlights:'Ne changez rien',improvements:'Trop de monde'}},{type:'visiteur',questions,answers:{community:['Basket'],age:'35-44',gender:'Homme',buy:['Cartes'],spend:'50 à 100 €',duration:'1 à 2 heures',collection:'Moins de 1 an',paid:'Non',entryPrice:'8',returnIntent:'Non',highlights:'Vous êtes parfaits',improvements:'Les allées impraticables'}}];
  const html=visitorFeedbackMarkup(rows);
- assert.equal((html.match(/class="visitor-pie"/g)||[]).length,6);
+ assert.equal((html.match(/class="visitor-pie"/g)||[]).length,8);
  assert.match(html,/Communautés : Basket : 2, Soccer : 1/);
  assert.match(html,/Les pourcentages indiquent la part des répondants/);
- assert.match(html,/Types d’achat : Cartes : 2, Goodies : 1/);
+ assert.match(html,/Type d’achat : Cartes : 2, Goodies : 1/);
  assert.match(html,/Prêt à payer l’entrée l’an prochain : Non : 1, Oui : 1/);
- assert.match(html,/Prix moyen entrée 2027/);
+ assert.match(html,/Prêt à payer l’an prochain/);
+ assert.match(html,/Q19 moyen · Oui 50 % · Non 50 %/);
  assert.match(html,/Éloges/);
  assert.match(html,/Forte affluence/);
  assert.match(html,/Ne changez rien/);
