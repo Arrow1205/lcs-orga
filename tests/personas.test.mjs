@@ -10,9 +10,13 @@ const questions=[
  {key:'q_spend',label:'Combien tu as dépensé ?',kind:'short'},
  {key:'q_companions',label:'Tu es venu seul ou accompagné ?',kind:'choice'},
  {key:'q_improvements',label:'Qu’est ce qui t’a gêné ou que tu aimerais améliorer ?',kind:'text'},
+ {key:'q_duration',label:'Combien de temps es-tu resté sur le salon ?',kind:'choice'},
+ {key:'q_discovery',label:'Comment as-tu entendu parler du salon ?',kind:'checkbox'},
+ {key:'q_satisfaction',label:'Note globale du salon',kind:'rating10'},
+ {key:'q_food',label:'As-tu acheté à manger sur place ?',kind:'choice'},
  {key:'q_identity',label:'Nom de ta société',kind:'short'}
 ];
-function visitor(community,age,gender,interest,extra={}){return {type:'visiteur',questions,answers:{community,returnIntent:'Oui',q_age:age,q_gender:gender,q_interest:Array.isArray(interest)?interest:[interest],q_spend:'50 €',q_companions:'avec ses enfants',q_improvements:'Trop de monde dans les allées',q_identity:'Non publié',...extra}}}
+function visitor(community,age,gender,interest,extra={}){return {type:'visiteur',questions,answers:{community,returnIntent:'Oui',q_age:age,q_gender:gender,q_interest:Array.isArray(interest)?interest:[interest],q_spend:'50 €',q_companions:'avec ses enfants',q_improvements:'Trop de monde dans les allées',q_duration:'2 à 3 heures',q_discovery:['Instagram'],q_satisfaction:8,q_food:'Oui',q_identity:'Non publié',...extra}}}
 
 test('les profils globaux et communautaires découlent des réponses et gardent des effectifs vérifiables',()=>{
  const rows=[
@@ -39,11 +43,20 @@ test('les profils globaux et communautaires découlent des réponses et gardent 
  const html=personasMarkup(rows,true);
  assert.match(html,/Alex/);
  assert.match(html,/passionné de/);
+ assert.match(html,/reste 2 à 3 heures sur le salon/);
  assert.match(html,/panier moyen 50 €/);
+ assert.match(html,/a découvert le salon via Instagram/);
+ assert.match(html,/note l’expérience 8/);
+ assert.match(html,/acheté à manger sur place \? : Oui/i);
  assert.match(html,/malgré/);
  assert.match(html,/Friction principale/);
  assert.doesNotMatch(html,/Non publié/);
  assert.match(html,/2\/2 réponses renseignées/);
+ const edited=personasMarkup(rows,true,{canEdit:true,overrides:{'global-1':'Persona réécrit à la main.'},deleted:new Set(['global-2']),editing:'global-1'});
+ assert.match(edited,/Persona réécrit à la main/);
+ assert.match(edited,/data-persona-save="global-1"/);
+ assert.match(edited,/data-persona-delete="global-1"/);
+ assert.doesNotMatch(edited,/data-persona-id="global-2"/);
 });
 
 test('ne fabrique pas les profils manquants et ignore le filtre communautaire global',()=>{

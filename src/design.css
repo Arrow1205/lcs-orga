@@ -396,3 +396,5 @@ button,a,input,select,textarea{touch-action:manipulation}
 .survey-condition{display:grid;gap:9px;padding:13px;border-radius:10px;background:var(--line)}.survey-condition-toggle{display:flex!important;align-items:center;gap:9px;font-weight:750}.survey-condition-toggle input{width:18px;height:18px;accent-color:#1303e3}.survey-condition-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.survey-condition>small{color:var(--muted)}.survey-condition>.btn{justify-self:start}@media(max-width:600px){.survey-condition-fields{grid-template-columns:1fr}}
 
 .persona-summary{font-size:15px;line-height:1.55;margin:0 0 14px;font-weight:650;color:var(--ink)}.dark .persona-summary{color:#fff}
+
+.persona-card .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.persona-edit{display:grid;gap:10px;margin:0 0 14px}.persona-edit textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel);color:var(--ink);resize:vertical}.dark .persona-edit textarea{color:#fff}
