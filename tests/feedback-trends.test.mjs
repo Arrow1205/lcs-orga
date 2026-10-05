@@ -38,3 +38,24 @@ test('camemberts lisibles et tendances vérifiables dans la vue visiteurs',()=>{
  assert.deepEqual(stats.distributions.duration.map(([label])=>label).sort(),['1 à 2 heures','2 à 3 heures']);
  assert.deepEqual(stats.distributions.collectionAge.map(([label])=>label).sort(),['Moins de 1 an','Plus de 5 ans']);
 });
+
+test('les questions conditionnelles absentes ne décalent pas les KPI suivants',()=>{
+ const questions=Array.from({length:20},(_,i)=>({key:`q${i+1}`,label:`Question ${i+1}`,kind:'choice'}));
+ questions[0].label='Communauté';questions[1].label='Âge';questions[2].label='Genre';questions[3].label='Type de visiteur';questions[4].label='Ville';questions[5].label='Découverte';questions[6].label='Collectionneur depuis';questions[7].label='Temps passé';questions[8].label='A réalisé un achat';questions[9].label='Type d’achat';questions[10].label='Montant dépensé';questions[11].label='Venue avec';questions[12]={key:'q13',label:'Que penses-tu de',kind:'grid',rows:['Accueil'],columns:['Très bien','Bien']};questions[13].label='Point positif';questions[14].label='Point négatif';questions[15]={key:'q16',label:'Satisfaction globale',kind:'rating10'};questions[16].label='Envie de revenir';questions[17].label='Prêt à payer l’entrée l’an prochain';questions[18].label='Combien serais-tu prêt à mettre';questions[19].label='Retour libre';
+ const base={type:'visiteur',questions:null,answers:{q1:['Basket'],q2:'25-34',q3:'Homme',q4:'Visiteur',q5:'Lille',q6:'Instagram',q7:'2 ans',q8:'2h',q12:'Seul',q13:{Accueil:'Très bien'},q14:'Top',q15:'Rien',q16:8,q20:'Commentaire général'}};
+ const rows=[
+  {...base,answers:{...base.answers,q9:'Oui',q10:['Box'],q11:'100 à 150 €',q17:'Oui',q18:'Oui',q19:'10 €'}},
+  {...base,answers:{...base.answers,q9:'Non',q17:'Non'}}
+ ];
+ const stats=visitorStats(rows,questions);
+ assert.equal(stats.topPurchase,'Box');
+ assert.equal(stats.averageSpend,125);
+ assert.deepEqual(stats.distributions.didPurchase,[['Non',1],['Oui',1]]);
+ assert.deepEqual(stats.distributions.companions,[['Seul',2]]);
+ assert.deepEqual(stats.distributions.returnIntent,[['Non',1],['Oui',1]]);
+ assert.equal(stats.averageEntryPrice,10);
+ const html=visitorFeedbackMarkup(rows,questions);
+ assert.match(html,/Q20 · Retours libres/);
+ assert.match(html,/Commentaire général/);
+ assert.doesNotMatch(html,/Seul : 1/);
+});
