@@ -17,10 +17,15 @@ create function crm_has_role(w text,roles text[]) returns boolean language sql s
 insert into auth.users values('${uid}');insert into crm_workspaces(id,name) values('${wid}','LCS');insert into crm_editions values('${wid}',2026);insert into crm_members values('${wid}','${uid}','admin');
 select set_config('request.jwt.claim.sub','${uid}',false);`);await db.exec(migration);return db;}
 test('questionnaire : embranchement exposant et regroupement de paraphrases',()=>{
- assert.ok(questions.exposant.at(-1).key==='identity');
+ assert.equal(questions.exposant.length,27);
+ assert.equal(questions.exposant[17].key,'q18_no_return_reason');
+ assert.deepEqual(questions.exposant[17].showIf.anyOf,['Probablement pas','Non']);
  assert.ok(validateAnswers('visiteur',{community:'Basket',duration:'1 à 2 heures',purchase:'Non',satisfaction:0,returnIntent:'Oui'}));
- assert.ok(!validateAnswers('exposant',{participation:'Exposant',setup:3,attendance:4,value:4,roi:2,satisfaction:4,returnIntent:'Oui'}));
- assert.ok(validateAnswers('exposant',{participation:'Partenaire',setup:3,attendance:4,value:4,roi:2,satisfaction:4,returnIntent:'Oui'}));
+ assert.ok(!validateAnswers('exposant',{q1_status:'Professionnel',q2_zone:'Basketball'}));
+ const valid={q1_status:'Professionnel',q2_zone:'Basketball',q3_experience:9,q4_location:8,q5_space_fit:'Adapté',q6_space_limit:'Non',q7_logistics:Object.fromEntries(questions.exposant[6].rows.map(row=>[row,'4'])),q8_flow:'Bon',q9_crowding:'Non',q10_buying_type:'Un mélange assez équilibré',q11_card_budget:'50 à 100 €',q12_best_sellers:['Singles milieu de gamme','Cartes gradées'],q13_revenue:'1 000 à 2 000 €',q14_sales_expectations:'Conformes à mes attentes',q15_value:8,q16_organization:Object.fromEntries(questions.exposant[15].rows.map(row=>[row,'5'])),q17_return:'Oui, probablement',q19_next_config:['Plus de tables'],q20_booking_choice:'Non',q24_budget_increase:'Peut-être, selon le tarif'};
+ assert.ok(validateAnswers('exposant',valid));
+ assert.ok(validateAnswers('exposant',{...valid,q17_return:'Non',q18_no_return_reason:['Tarif']}));
+ assert.ok(!validateAnswers('exposant',{...valid,q17_return:'Non'}));
  for(const phrase of ['Trop de monde dans les allées','Les allées étaient pleines','L’affluence était trop forte'])assert.ok(themesFor(phrase).includes('Forte affluence'));
  assert.equal(surveyStats([{answers:{satisfaction:0}},{answers:{satisfaction:5}}]).average,2.5);
 });

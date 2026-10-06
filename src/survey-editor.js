@@ -13,7 +13,8 @@ export function validateEditorConditions(items){
   const condition=items[index].showIf;
   if(!condition)continue;
   const parent=conditionParents(items,index).find(item=>item.key===condition.key);
-  if(!parent||!parent.options.includes(condition.equals))return `Vérifie la condition de la question ${index+1} : choisis une question précédente et une réponse encore disponible.`;
+  const expected=Array.isArray(condition.anyOf)?condition.anyOf:[condition.equals];
+  if(!parent||!expected.length||expected.some(value=>!parent.options.includes(value)))return `Vérifie la condition de la question ${index+1} : choisis une question précédente et une réponse encore disponible.`;
  }
  return '';
 }

@@ -1,5 +1,6 @@
 import {surveyLink} from './routes.js';
 import {visitorFeedbackMarkup,answerFor,questionFor,communityValues,matchesCommunity} from './visitor-feedback.js';
+import {exhibitorFeedbackMarkup} from './exhibitor-feedback.js';
 import {themesFor} from './feedback-themes.js';
 import {personasMarkup} from './survey-personas.js';
 export {themesFor,normalizeVerbatim} from './feedback-themes.js';
@@ -30,6 +31,7 @@ export function surveyResultsMarkup(allRows,tab,year,{community='',positiveLimit
  ${tab==='personas'?'':`<div class="panel survey-filters"><label>Communauté<select data-survey-community><option value="">Toutes les communautés</option>${communities.map(name=>`<option value="${esc(name)}" ${community===name?'selected':''}>${esc(name)}</option>`).join('')}</select></label><span class="sub">${community?`Vue ${esc(community)} · ${rows.length} réponses`:`Vue globale · ${rows.length} réponses`}</span></div>`}`;
  if(tab==='personas')return header+personasMarkup(allRows,personasGenerated,{canEdit,overrides:personaOverrides,deleted:personaDeleted,editing:personaEditing});
  if(tab==='visiteur')return header+visitorFeedbackMarkup(scoped,forms.visiteur?.questions||[]);
+ if(tab==='exposant')return header+exhibitorFeedbackMarkup(scoped,forms.exposant?.questions||[]);
  if(tab==='responses'){
   const selected=rows.filter(r=>responseType==='all'||r.type===responseType);
   const rating=r=>{const value=Number(answerFor(r,'satisfaction')),scale=questionFor(r,'satisfaction')?.kind==='rating10'?10:5;return Number.isInteger(value)&&value>=0&&value<=scale?value*10/scale:null};
