@@ -6,6 +6,7 @@ import {questions,validateAnswers} from '../src/survey-schema.js';
 import {surveyStats,themesFor} from '../src/survey-results.js';
 import {visitorStats,visitorFeedbackMarkup,normalizeCity,matchesCommunity} from '../src/visitor-feedback.js';
 import {buildSurveyCSV} from '../src/survey-editor.js';
+import {exhibitorFeedbackMarkup} from '../src/exhibitor-feedback.js';
 const wid='10000000-0000-0000-0000-000000000001',uid='00000000-0000-0000-0000-000000000001';
 const migration=await readFile(new URL('../supabase/migrations/009_surveys.sql',import.meta.url),'utf8');
 async function setup(){const db=new PGlite();await db.exec(`create role anon;create role authenticated;create schema auth;
@@ -28,6 +29,18 @@ test('questionnaire : embranchement exposant et regroupement de paraphrases',()=
  assert.ok(!validateAnswers('exposant',{...valid,q17_return:'Non'}));
  for(const phrase of ['Trop de monde dans les allées','Les allées étaient pleines','L’affluence était trop forte'])assert.ok(themesFor(phrase).includes('Forte affluence'));
  assert.equal(surveyStats([{answers:{satisfaction:0}},{answers:{satisfaction:5}}]).average,2.5);
+});
+test('dashboard exposant suit le formulaire après suppression de Q10, Q11 et Q19',()=>{
+ const defs=questions.exposant.filter(q=>!['q10_buying_type','q11_card_budget','q19_next_config'].includes(q.key));
+ const answers={q1_status:'Professionnel',q2_zone:'Basketball',q3_experience:9,q4_location:8,q5_space_fit:'Adapté',q6_space_limit:'Non',q7_logistics:Object.fromEntries(questions.exposant[6].rows.map(row=>[row,'4'])),q8_flow:'Bon',q9_crowding:'Non',q12_best_sellers:['Cartes gradées'],q13_revenue:'1 000 à 2 000 €',q14_sales_expectations:'Conformes à mes attentes',q15_value:8,q16_organization:Object.fromEntries(questions.exposant[15].rows.map(row=>[row,'5'])),q17_return:'Oui, probablement',q20_booking_choice:'Non',q24_budget_increase:'Peut-être, selon le tarif',q25_improvement:'Plus de place',q26_keep:'Ambiance',q27_suggestion:'Rien'};
+ const row={type:'exposant',questions:defs,answers};
+ const markup=exhibitorFeedbackMarkup([row],defs);
+ assert.doesNotMatch(markup,/Type d’achat recherché/);
+ assert.doesNotMatch(markup,/Budget carte estimé/);
+ assert.doesNotMatch(markup,/Configuration souhaitée/);
+ assert.match(markup,/Q10 · Produits les mieux vendus/);
+ assert.match(markup,/Q17 · Intérêt table \/ m²/);
+ assert.match(markup,/Q22 · À améliorer/);
 });
 test('dashboard visiteur publié : communautés multiples, ville normalisée, grille et note sur 10',()=>{
  const questions=[{key:'q_comm',label:'A quelle(s) communauté(s) appartiens-tu ?',kind:'checkbox'},
