@@ -31,5 +31,5 @@ export function vipFeedbackMarkup(rows,definitions=[]){
   return `<section class="panel visitor-chart"><div class="panel-head"><h2>${esc(tag(key)+q.label)}</h2><small>${total} réponse(s)</small></div>${entries.length?entries.map(([label,count])=>`<div class="visitor-bar-row"><span>${esc(label)}</span><div class="visitor-bar-track"><i style="width:${count/total*100}%"></i></div><strong>${count} <small>· ${Math.round(count/total*100)} %</small></strong></div>`).join(''):'<p class="sub">Aucune réponse pour le moment.</p>'}</section>`;
  };
  const premium=`<div class="visitor-dashboard vip-dashboard"><div class="visitor-kpis">${kpi('vip_bag','Qualité du sac VIP',s.bagAverage===null?'—':s.bagAverage.toFixed(1).replace('.',',')+'/10',s.bagCount+' note(s) · VIP uniquement')}${kpi('vip_price','Bon rapport qualité/prix',pct(s.goodValue),'parmi les réponses à cette question')}${kpi('vip_community_pack','Intérêt pour un pack par communauté',pct(s.packInterest),'parmi les réponses à cette question')}</div><div class="visitor-bento">${['vip_ticket','vip_price','vip_duration','vip_community_pack'].map(chart).join('')}</div></div>`;
- return premium+visitorFeedbackMarkup(rows,current,{type:'vip'});
+ return visitorFeedbackMarkup(rows,current,{type:'vip',afterOverview:premium});
 }
