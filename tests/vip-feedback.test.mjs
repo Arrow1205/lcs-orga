@@ -45,3 +45,38 @@ test('dashboard VIP : notes, ratios par réponses, communautés et Q21 sans déc
  assert.match(markup,/Q25 · Retours libres/);assert.match(markup,/Super ambiance/);
  assert.match(surveyResultsMarkup(rows,'vip',2026,{forms:{vip:{questions:defs}}}),/Qualité du sac VIP/);
 });
+
+test('suppression de Q9 Q22 Q23 : KPI stables, blocs masqués, numéros recalculés',()=>{
+ const reduced=defs.filter((q,index)=>![8,21,22].includes(index));
+ const rows=[{...make('VIP',8,10),questions:reduced},make('Early Access',6)];
+ const stats=visitorStats(rows,reduced,{type:'vip'});
+ assert.equal(stats.score,7);
+ assert.deepEqual(stats.distributions.ticket,[]);
+ assert.deepEqual(stats.distributions.returnIntent,[]);
+ assert.deepEqual(stats.distributions.paidEntry,[]);
+ const html=vipFeedbackMarkup(rows,reduced);
+ assert.match(html,/Q20 · 2 note/);
+ assert.match(html,/Q18 · Points négatifs/);
+ assert.match(html,/Q19 · Points positifs/);
+ assert.match(html,/Q22 · Retours libres/);
+ assert.doesNotMatch(html,/Type de visiteur|Envie de revenir|Prêt à payer l’entrée l’an prochain/);
+ assert.doesNotMatch(html,/Oui — %|Non — %/);
+ assert.match(html,/Qualité du sac VIP/);
+ assert.equal(answerFor(rows[0],'satisfaction',reduced),8);
+});
+
+test('questions VIP à clés personnalisées identifiées après suppressions sans historique',()=>{
+ const labels=['À quelle communauté appartiens-tu ?',"Quelle est ta tranche d’âge ?",'Quel est ton genre ?','Tu es venu en tant que ?', 'De quelle ville viens-tu ?', 'Comment as-tu découvert le salon ?', 'Depuis combien de temps collectionnes-tu ?', 'Combien de temps es-tu resté sur place ?', 'As-tu fait des achats ?', 'Quel type d’achat ?', 'Combien as-tu dépensé ?', 'Es-tu venu seul ou accompagné ?', 'Que penses-tu de…', 'Qu’est-ce qui t’a gêné ou que nous pourrions améliorer ?', 'Quel est le point que tu as le plus apprécié ?', 'Quelle note globale donnerais-tu au salon ?', 'Aurais-tu envie de revenir à la prochaine édition ?', 'Serais-tu prêt à payer l’entrée l’an prochain ?', 'Combien serais-tu prêt à payer ?', 'Que rêves-tu d’avoir ?'];
+ const full=duplicateVisitorForVip(visitor.map((q,i)=>({...q,key:`custom_${100+i}`,label:labels[i]})));
+ const reduced=full.filter((q,index)=>![8,21,22].includes(index));
+ const answers=Object.fromEntries(Object.entries(make('VIP',9,10).answers).map(([key,val])=>[key.startsWith('visitor_')?`custom_${99+Number(key.split('_')[1])}`:key,val]));
+ const row={type:'vip',questions:reduced,answers};
+ assert.equal(answerFor(row,'satisfaction',reduced),9);
+ assert.deepEqual(communityValues(row,reduced),['Basket']);
+ assert.equal(answerFor(row,'returnIntent',reduced),undefined);
+ const html=vipFeedbackMarkup([row],reduced);
+ assert.match(html,/Q20 · 1 note/);
+ assert.match(html,/9,0\/10/);
+ assert.match(html,/Plus de place/);
+ assert.doesNotMatch(html,/Envie de revenir|Type de visiteur/);
+});
