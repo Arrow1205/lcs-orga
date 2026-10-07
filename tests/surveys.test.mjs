@@ -39,7 +39,7 @@ test('dashboard exposant suit le formulaire après suppression de Q10, Q11 et Q1
  assert.doesNotMatch(markup,/Budget carte estimé/);
  assert.doesNotMatch(markup,/Configuration souhaitée/);
  assert.match(markup,/Q10 · Produits les mieux vendus/);
- assert.match(markup,/Q17 · Intérêt table \/ m²/);
+ assert.match(markup,/Q17 · oui/);
  assert.match(markup,/Q22 · À améliorer/);
 });
 test('dashboard visiteur publié : communautés multiples, ville normalisée, grille et note sur 10',()=>{
@@ -261,3 +261,31 @@ test('dupliquer un questionnaire vers une autre année ne copie aucune réponse'
  assert.equal((await db.query('select crm_survey_results($1,2027) as rows',[wid])).rows[0].rows.length,0);
  assert.equal((await db.query('select crm_survey_results($1,2026) as rows',[wid])).rows[0].rows.length,1);
  }finally{await db.close()}});
+
+test('migration VIP 2026 copie le formulaire enregistré et conserve les réponses',async()=>{
+ const db=await setup();try{
+  await db.exec('alter table crm_editions add column closed_at timestamptz');
+  await db.exec(editorMigration);await db.exec(gridSQL);
+  const source=[{key:'source_community',label:'Ta communauté ?',kind:'choice',options:['Basket','TCG'],required:true},{key:'source_buy',label:'Un achat ?',kind:'choice',options:['Oui','Non'],required:true},{key:'source_what',label:'Quoi ?',kind:'short',required:true,showIf:{key:'source_buy',equals:'Oui'}},{key:'source_rating',label:'Ta note globale ?',kind:'rating10',required:true}];
+  await db.exec('set role authenticated');
+  await db.query("select crm_survey_save_form($1,2026,'visiteur',0,$2)",[wid,source]);
+  await db.exec('reset role');await db.exec('set role anon');
+  const visitorAnswers={source_community:'Basket',source_buy:'Non',source_rating:8};
+  await db.query("select crm_submit_survey('lcs',2026,'visiteur',$1)",[visitorAnswers]);
+  await db.exec('reset role');
+  const sql=await readFile(new URL('../supabase/migrations/015_vip_survey_2026.sql',import.meta.url),'utf8');
+  await db.exec(sql);
+  const stored=(await db.query("select questions,version from crm_survey_forms where type='vip'")).rows[0];
+  assert.deepEqual(stored.questions.slice(5),source);assert.equal(stored.questions.length,9);
+  assert.equal((await db.query('select count(*) as n from crm_survey_responses')).rows[0].n,1);
+  await db.exec('set role anon');
+  const answers={...visitorAnswers,vip_ticket:'Early Access',vip_price:'Bon rapport qualité/prix',vip_duration:'Adaptée',vip_community_pack:'Oui'};
+  await db.query("select crm_submit_survey('lcs',2026,'vip',$1)",[answers]);
+  await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'vip',$1)",[{...answers,vip_ticket:'VIP'}]),e=>e.code==='22023');
+  await db.query("select crm_submit_survey('lcs',2026,'vip',$1)",[{...answers,vip_ticket:'VIP',vip_bag:10}]);
+  await assert.rejects(db.query("select crm_submit_survey('lcs',2026,'vip',$1)",[{...answers,vip_bag:10}]),e=>e.code==='22023');
+  await db.exec('reset role');await db.exec(sql);
+  assert.equal((await db.query("select version from crm_survey_forms where type='vip'")).rows[0].version,2);
+  assert.equal((await db.query('select count(*) as n from crm_survey_responses')).rows[0].n,3);
+ }finally{await db.close()}
+});

@@ -1,3 +1,4 @@
+import {duplicateVisitorForVip} from './vip-schema.js';
 export const types=['visiteur','vip','exposant'];
 export const common=[
  {key:'satisfaction',label:'Quelle note globale donnerais-tu au salon ?',kind:'rating',required:true},
@@ -14,17 +15,7 @@ export const questions={
   {key:'zones',label:'Dans quelle zone as-tu passé le plus de temps ?',kind:'choice',options:['Basket','Soccer','Sport US','TCG','Un peu partout','Je ne sais pas']},
   ...common
  ],
- vip:[
-  {key:'premiumType',label:'Quel billet premium avais-tu ?',kind:'choice',options:['VIP','Early Access'],required:true},
-  {key:'premiumEntry',label:'Comment s’est passée ton entrée premium ?',kind:'rating',required:true},
-  {key:'premiumValue',label:'Le supplément en valait-il la peine ?',kind:'choice',options:['Oui','En partie','Non'],required:true},
-  {key:'community',label:'Qu’est-ce qui t’intéresse le plus ?',kind:'choice',options:['Basket','Soccer','Sport US','TCG','Plusieurs univers','Je suis surtout curieux·se'],required:true},
-  {key:'discovery',label:'Comment as-tu découvert le salon ?',kind:'choice',options:['Instagram','Facebook','Bouche à oreille','Presse / média','Autre']},
-  {key:'zones',label:'Dans quelle zone as-tu passé le plus de temps ?',kind:'choice',options:['Basket','Soccer','Sport US','TCG','Un peu partout','Je ne sais pas']},
-  {key:'duration',label:'Combien de temps es-tu resté·e ?',kind:'choice',options:['Moins d’une heure','1 à 2 heures','2 à 4 heures','Plus de 4 heures'],required:true},
-  {key:'purchase',label:'As-tu fait des achats sur place ?',kind:'choice',options:['Oui','Non'],required:true},
-  ...common
- ],
+ vip:[],
  exposant:[
   {key:'q1_status',label:'Quel était votre statut sur le salon ?',kind:'choice',options:['Particulier','Professionnel','Partenaire'],required:true},
   {key:'q2_zone',label:'Dans quelle zone étiez-vous ?',kind:'choice',options:['Football','Basketball','Sports US','TCG / Pokémon'],required:true},
@@ -55,6 +46,7 @@ export const questions={
   {key:'q27_suggestion',label:'Avez-vous une remarque, une idée ou une suggestion complémentaire ?',kind:'text'}
  ]
 };
+questions.vip=duplicateVisitorForVip(questions.visiteur);
 function conditionMatches(condition,answers){
  if(!condition)return true;
  const value=answers[condition.key];
