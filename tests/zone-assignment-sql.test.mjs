@@ -1,0 +1,25 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+const ws='11111111-1111-1111-1111-111111111111';
+test('SQL zones 2026 : correspondances, historique, version, autres années et réexécution',async()=>{
+ const db=new PGlite();
+ await db.exec(`create schema auth; create function auth.uid() returns uuid language sql as 'select null::uuid';
+ create table crm_editions(workspace_id uuid,year int,closed_at timestamptz);
+ create table crm_v2_status(workspace_id uuid,revision bigint);
+ create table crm_exhibitors(workspace_id uuid,edition_year int,id text,payload jsonb,version bigint default 1,updated_at timestamptz,updated_by uuid);
+ create table crm_zones(workspace_id uuid,edition_year int,id text,payload jsonb);
+ create table crm_history(workspace_id uuid,edition_year int,entity text,record_id text,before_data jsonb,after_data jsonb,changed_by uuid);
+ insert into crm_editions values('${ws}',2026,null),('${ws}',2027,null);
+ insert into crm_v2_status values('${ws}',4);
+ insert into crm_zones values('${ws}',2026,'basket','{"name":"Basket"}'),('${ws}',2026,'soccer','{"name":"Soccer"}'),('${ws}',2026,'sports-us','{"name":"Sports US"}'),('${ws}',2026,'tcg','{"name":"TCG / Pokémon"}');`);
+ for(const [id,year,row] of [['a',2026,{community:'Basket',zone:'soccer',amount:123,note:'Conserver'}],['b',2026,{community:'Football',zone:''}],['c',2026,{community:'Sport US'}],['d',2026,{community:'Pokémon'}],['unknown',2026,{community:'Autre inconnu',zone:'basket'}],['old',2027,{community:'Basket',zone:'soccer'}]])await db.query('insert into crm_exhibitors(workspace_id,edition_year,id,payload) values($1,$2,$3,$4)',[ws,year,id,row]);
+ const sql=await readFile(new URL('../supabase/scripts/assign_zones_from_community_2026.sql',import.meta.url),'utf8');
+ await db.exec(sql);const rows=(await db.query('select id,payload,version from crm_exhibitors order by id')).rows;
+ const row=id=>rows.find(x=>x.id===id);assert.equal(row('a').payload.zone,'basket');assert.equal(row('a').payload.amount,123);assert.equal(row('a').payload.note,'Conserver');assert.equal(row('b').payload.zone,'soccer');assert.equal(row('c').payload.zone,'sports-us');assert.equal(row('d').payload.zone,'tcg');assert.equal(row('unknown').payload.zone,'basket');assert.equal(row('old').payload.zone,'soccer');assert.equal(Number(row('a').version),2);
+ assert.equal((await db.query('select * from crm_history')).rows.length,4);assert.equal(Number((await db.query('select revision from crm_v2_status')).rows[0].revision),5);
+ await db.exec(sql);assert.equal((await db.query('select * from crm_history')).rows.length,4);assert.equal(Number((await db.query('select revision from crm_v2_status')).rows[0].revision),5);
+ await db.exec('update crm_editions set closed_at=now() where year=2026');await assert.rejects(db.exec(sql),/clôturée/);await db.exec('rollback');
+ await db.close();
+});

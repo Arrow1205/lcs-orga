@@ -158,3 +158,9 @@ Aucune nouvelle migration SQL : ces calculs sont dérivés des tables existantes
 Le Bilan affiche une seule ligne **Tables / Stands** reprenant le total de la page Exposants, et une seule ligne **Partenaires** dans la rubrique Partenaires, reprenant son total. Les anciennes lignes de reclassement par fiche restent enregistrées mais ne sont plus comptées séparément. Chaque total reste synchronisé avec ses sources et peut être reclassé. Les boutons ouvrent les pages source.
 
 Les KPI d’implantation prennent la zone affectée en priorité (identifiant, nom ou alias Football/Soccer et Sports US). Sans zone valide, les tables sont repérées par communauté et signalées **à affecter**. Elles sont distinguées des tables effectivement affectées. Les annulations sont exclues et les tables sans zone ni communauté reconnue sont signalées séparément. Une capacité nulle affiche un tiret plutôt qu’un pourcentage fictif. **Aucun nouveau SQL nécessaire.**
+
+### Réaffecter les zones à partir des communautés en 2026
+
+Le script `supabase/scripts/assign_zones_from_community_2026.sql`, à exécuter dans le SQL Editor du projet Supabase, remplace les zones des exposants de 2026 à partir des communautés reconnues et des zones réellement définies pour cette édition. Il conserve les champs non concernés, écrit l’historique et incrémente les versions et la révision. Une réexécution sans changement ne réécrit aucune fiche. Les autres années et les correspondances absentes ou ambiguës restent intactes. S’il existe plusieurs espaces, renseigner `target_workspace`. L’édition doit être ouverte. Recharger l’application après exécution.
+
+Les KPI des communautés dans Exposants affichent aussi les nombres de pros et de particuliers (Collectionneur/Particulier), hors annulations. Ils comptent les personnes, pas les tables ni les montants.
