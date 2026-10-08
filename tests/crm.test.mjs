@@ -10,7 +10,7 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  Object.assign(globalThis,{window:dom.window,document:dom.window.document,FormData:dom.window.FormData,Event:dom.window.Event,scrollTo:()=>{},alert:()=>{},confirm:()=>true});
  const backend={owners:['Alice'],save:state=>saved.push(structuredClone(state)),saveOwners:async(name,remove)=>{backend.owners=remove?backend.owners.filter(x=>x!==name):[...backend.owners,name];return [...backend.owners]},putBlob:async()=>{},getBlob:async()=>new Blob(['test'],{type:'application/pdf'})};const api=startCRM(null,backend);
  assert.equal(dom.window.location.pathname,'/vue-ensemble');
- document.querySelector('[data-view="tasks"]').click();
+ document.querySelector('[data-view="tasks"]').click();document.querySelector('[data-tab="tasks:list"]').click();
  assert.equal(dom.window.location.pathname,'/taches-planning');
  assert.equal(dom.window.location.search,'?year=2026');
  document.querySelector('[data-add="tasks"]').click();
@@ -19,7 +19,7 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  await new Promise(r=>setTimeout(r,0));
  assert.equal(saved.length,1);assert.equal(saved[0].tasks[0].title,'Test cloud');assert.equal(api.getState().tasks.length,1);
  assert.equal(dom.window.localStorage.getItem('lcs-crm-v1'),null);
- const remote=api.getState();remote.tasks[0].title='Autre membre';api.replaceState(remote);assert.match(document.getElementById('content').textContent,/Autre membre/);const taskRow=document.querySelector('tr[data-row-edit^="tasks:"]');assert.equal(taskRow.tabIndex,0);taskRow.focus();taskRow.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));assert.ok(document.getElementById('editForm'));document.querySelector('.close').click();assert.ok(document.querySelector('header.top #editionPicker'));
+ const remote=api.getState();remote.tasks[0].title='Autre membre';api.replaceState(remote);assert.match(document.getElementById('content').textContent,/Autre membre/);document.querySelector('[data-tab="tasks:list"]').click();const taskRow=document.querySelector('tr[data-row-edit^="tasks:"]');assert.equal(taskRow.tabIndex,0);taskRow.focus();taskRow.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));assert.ok(document.getElementById('editForm'));document.querySelector('.close').click();assert.ok(document.querySelector('header.top #editionPicker'));
 
  const state=api.getState();state.contacts=[{id:'c1',type:'Partenaire',company:'Test Société',first:'Alex',last:'Martin',email:'alex@example.test',phone:'0123456789'}];api.replaceState(state);
  document.querySelector('[data-view="partners"]').click();document.querySelector('[data-add="partners"]').click();
@@ -86,6 +86,6 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  document.querySelector('[data-row-edit="exhibitors:'+created.id+'"]').click();exhibitor=document.getElementById('editForm');assert.equal(exhibitor.elements.amount.value,'125');
  exhibitor.elements.vendorType.value='Partenaire';exhibitor.elements.vendorType.dispatchEvent(new Event('change',{bubbles:true}));assert.equal(exhibitor.elements.amount.value,'300');
  exhibitor.elements.vendorType.value='Artiste';exhibitor.elements.vendorType.dispatchEvent(new Event('change',{bubbles:true}));assert.equal(exhibitor.elements.amount.value,'75');document.querySelector('.close').click();
- document.querySelector('[data-view="settings"]').click();assert.ok(document.querySelector('#accountSettings'));assert.ok(document.querySelector('#membersSettings'));assert.match(document.querySelector('#ownerForm').closest('.panel').textContent,/Alice/);document.querySelector('#ownerForm [name=owner]').value='Bob';document.getElementById('ownerForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));assert.deepEqual(api.getState().settings.owners,['Alice','Bob']);const anotherYear=api.getState();anotherYear.settings.owners=[];api.replaceState(anotherYear);assert.deepEqual(api.getState().settings.owners,['Alice','Bob']);assert.equal(document.querySelector('[data-salon-date]'),null);assert.ok(!document.querySelector('#refreshCloud'));assert.ok(!document.querySelector('.side-bottom'));
+ document.querySelector('[data-view="settings"]').click();assert.ok(document.querySelector('#accountSettings'));assert.ok(document.querySelector('#membersSettings'));assert.equal(document.querySelector('#ownerForm'),null);assert.match(document.getElementById('content').textContent,/Membres et responsables/);assert.equal(document.querySelector('[data-salon-date]'),null);assert.ok(!document.querySelector('#refreshCloud'));assert.ok(!document.querySelector('.side-bottom'));
  dom.window.close();
 });
