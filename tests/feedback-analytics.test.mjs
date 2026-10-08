@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {returnCounts,bucketAmount,gridScore} from '../src/feedback-metrics.js';
 import {exhibitorStats} from '../src/exhibitor-feedback.js';
 import {surveyStats,surveyResultsMarkup} from '../src/survey-results.js';
-import {generateSummary,purchaseSpend,comparisonStats} from '../src/survey-analytics.js';
+import {generateSummary,purchaseSpend,comparisonStats,productComparison,comparisonMarkup} from '../src/survey-analytics.js';
 import {generatePersonas} from '../src/survey-personas.js';
 import handler,{aiConfiguration,analyzePersonas,validateNarratives} from '../api/feedback-analysis.js';
 
@@ -59,4 +59,16 @@ test('Gemini utilise une sortie structurée et la même validation des sources',
  const output={profiles:[{id:profiles[0].id,summary:'Constat étayé',motivation:'Motivation documentée',frustration:'Non documentée',evidenceIds:['e0']}]};
  const result=await analyzePersonas(profiles,{provider:'gemini',model:'configured-model',key:'key'},async(url,options)=>{assert.match(url,/configured-model:generateContent$/);payload=JSON.parse(options.body);return {ok:true,json:async()=>({candidates:[{content:{parts:[{text:JSON.stringify(output)}]}}]})}});
  assert.equal(payload.generationConfig.responseMimeType,'application/json');assert.ok(payload.generationConfig.responseJsonSchema);assert.equal(result[profiles[0].id].summary,'Constat étayé');
+});
+
+
+test('doubles barres : mêmes catégories, répondants distincts et dénominateurs par public',()=>{
+ const buyerQuestions=[{key:'purchase',label:'Type d’achat',options:["Carte(s) à l’unité",'Boxes','Produits dérivés']}],sellerQuestions=[{key:'q12_best_sellers',label:'Quels produits se sont le mieux vendus sur votre stand ?',options:['Singles petit budget','Singles premium / High-End','Boxes / Displays','Cartes gradées']}];
+ const rows=[{type:'visiteur',questions:buyerQuestions,answers:{purchase:["Carte(s) à l’unité"]}},{type:'vip',questions:buyerQuestions,answers:{purchase:['Boxes']}},{type:'visiteur',questions:buyerQuestions,answers:{}},{type:'exposant',questions:sellerQuestions,answers:{q12_best_sellers:['Singles petit budget','Singles premium / High-End','Cartes gradées']}},{type:'exposant',questions:sellerQuestions,answers:{q12_best_sellers:['Cartes gradées']}}];
+ const c=productComparison(rows);assert.equal(c.buyerAnswered,2);assert.equal(c.sellerAnswered,2);
+ const singles=c.products.find(p=>p.label==='Cartes à l’unité');assert.equal(singles.buyerPercent,50);assert.equal(singles.sellerPercent,50);assert.equal(singles.sellerCount,1);
+ const boxes=c.products.find(p=>p.label==='Boxes / Displays');assert.equal(boxes.buyerPercent,50);assert.equal(boxes.sellerPercent,0);
+ const graded=c.products.find(p=>p.label==='Cartes gradées');assert.equal(graded.buyerPercent,null);assert.equal(graded.sellerPercent,100);
+ const html=comparisonMarkup(rows);assert.match(html,/width:50%/);assert.match(html,/width:100%/);assert.match(html,/Acheteurs · 2 répondants/);assert.doesNotMatch(html,/Produits vendus par type de vendeur|Types d’achat · visiteurs et VIP|Produits vendus · exposants/);
+ assert.ok(productComparison(rows.filter(r=>r.type!=='exposant')).products.every(p=>p.sellerPercent===null));
 });

@@ -23,12 +23,39 @@ export function purchaseSpend(rows,forms={}){return meanBuckets(rows.filter(r=>[
 export function returningStats(rows,forms={}){return returnCounts(rows.map(r=>surveyAnswer(r,'returnIntent',forms)));}
 export function comparisonStats(rows,forms={}){
  const sellers=rows.filter(r=>r.type==='exposant'),buyers=rows.filter(r=>['visiteur','vip'].includes(r.type));
- return {sellerTypes:frequency(sellers.map(r=>sellerType(r,forms))),sellerAnswered:sellers.filter(r=>sellerType(r,forms)).length,purchases:frequency(buyers.map(r=>surveyAnswer(r,'purchase',forms))),purchaseAnswered:buyers.filter(r=>{const v=surveyAnswer(r,'purchase',forms);return Array.isArray(v)?v.length:typeof v==='string'&&v.trim()}).length,bestSellers:frequency(sellers.map(r=>surveyAnswer(r,'bestSellers',forms))),sellerProducts:['Particulier','Professionnel','Partenaire'].map(type=>({type,entries:frequency(sellers.filter(r=>sellerType(r,forms)===type).map(r=>surveyAnswer(r,'bestSellers',forms)))})).filter(g=>g.entries.length)};
+ return {sellerTypes:frequency(sellers.map(r=>sellerType(r,forms))),sellerAnswered:sellers.filter(r=>sellerType(r,forms)).length,purchases:frequency(buyers.map(r=>surveyAnswer(r,'purchase',forms))),purchaseAnswered:buyers.filter(r=>{const v=surveyAnswer(r,'purchase',forms);return Array.isArray(v)?v.length:typeof v==='string'&&v.trim()}).length,bestSellers:frequency(sellers.map(r=>surveyAnswer(r,'bestSellers',forms)))};
+}
+export function productCategory(value){
+ const n=normalizeVerbatim(value);
+ if(/grad|graded|slab/.test(n))return 'Cartes gradées';
+ if(/single|unite|unitaire/.test(n))return 'Cartes à l’unité';
+ if(/box|display|boite/.test(n))return 'Boxes / Displays';
+ if(/booster|pack/.test(n))return 'Boosters / Packs';
+ if(/sets?|lots?/.test(n))return 'Sets / Lots';
+ if(/derive|accessoire|goodies/.test(n))return 'Produits dérivés / accessoires';
+ if(n==='autre'||n==='autres')return 'Autres produits';
+ return String(value||'').trim();
+}
+export function productComparison(rows,forms={}){
+ const series=(types,field)=>{
+  const respondents=rows.filter(r=>types.includes(r.type)),counts=new Map(),available=new Set();let answered=0;
+  const choices=value=>(Array.isArray(value)?value:[value]).filter(v=>typeof v==='string'&&v.trim());
+  for(const type of types)for(const option of surveyQuestion({type,questions:forms[type]?.questions||[]},field,forms)?.options||[])available.add(productCategory(option));
+  for(const row of respondents){
+   for(const option of surveyQuestion(row,field,forms)?.options||[])available.add(productCategory(option));
+   const values=choices(surveyAnswer(row,field,forms));if(!values.length)continue;answered++;
+   for(const category of new Set(values.map(productCategory))){available.add(category);counts.set(category,(counts.get(category)||0)+1)}
+  }return {answered,counts,available};
+ };
+ const buyers=series(['visiteur','vip'],'purchase'),sellers=series(['exposant'],'bestSellers');
+ const categories=[...new Set([...buyers.available,...sellers.available])].sort((a,b)=>((buyers.counts.get(b)||0)+(sellers.counts.get(b)||0))-((buyers.counts.get(a)||0)+(sellers.counts.get(a)||0))||a.localeCompare(b,'fr'));
+ return {buyerAnswered:buyers.answered,sellerAnswered:sellers.answered,products:categories.map(label=>({label,buyerCount:buyers.counts.get(label)||0,sellerCount:sellers.counts.get(label)||0,buyerPercent:buyers.answered&&buyers.available.has(label)?Math.round((buyers.counts.get(label)||0)/buyers.answered*100):null,sellerPercent:sellers.answered&&sellers.available.has(label)?Math.round((sellers.counts.get(label)||0)/sellers.answered*100):null}))};
 }
 export function comparisonMarkup(rows,forms={}){
- const s=comparisonStats(rows,forms),table=(title,entries,n)=>`<section class="panel"><div class="panel-head"><h2>${esc(title)}</h2><small>${n} répondant(s)</small></div>${entries.length?`<div class="table-scroll"><table><thead><tr><th>Type</th><th>Réponses</th><th>Part</th></tr></thead><tbody>${entries.map(([label,count])=>`<tr><td>${esc(label)}</td><td>${count}</td><td>${Math.round(count/n*100)} %</td></tr>`).join('')}</tbody></table></div>`:'<p class="sub">Aucune réponse exploitable.</p>'}</section>`;
- const bySeller=s.sellerProducts.length?`<section class="panel"><h2>Produits vendus par type de vendeur</h2><div class="table-scroll"><table><thead><tr><th>Type de vendeur</th><th>Meilleures ventes déclarées</th><th>Réponses</th></tr></thead><tbody>${s.sellerProducts.flatMap(g=>g.entries.map(([product,count])=>`<tr><td>${esc(g.type)}</td><td>${esc(product)}</td><td>${count}</td></tr>`)).join('')}</tbody></table></div></section>`:'';
- return `<div class="visitor-bento">${table('Types de vendeurs',s.sellerTypes,s.sellerAnswered)}${table('Types d’achat · visiteurs et VIP',s.purchases,s.purchaseAnswered)}${s.bestSellers.length?table('Produits vendus · exposants',s.bestSellers,rows.filter(r=>r.type==='exposant'&&surveyAnswer(r,'bestSellers',forms)?.length).length):''}</div>${bySeller}<p class="sub">Répartitions des vendeurs et des achats déclarés ; les réponses anonymes ne permettent pas de relier un achat à un vendeur. Plusieurs choix possibles pour les produits.</p>`;
+ const s=comparisonStats(rows,forms),chart=productComparison(rows,forms);
+ const bar=(label,percent,count,total,series)=>`<div class="product-compare-bar ${series}" aria-label="${esc(label)} : ${percent===null?'non disponible':percent+' %, '+count+' sur '+total+' répondants'}"><div class="product-compare-track"><i style="width:${percent??0}%"></i></div><strong>${percent===null?'—':percent+' %'}</strong></div>`;
+ return `<section class="panel"><div class="panel-head"><h2>Types de vendeurs</h2><small>${s.sellerAnswered} répondant(s)</small></div>${s.sellerTypes.length?`<div class="table-scroll"><table><thead><tr><th>Type</th><th>Réponses</th><th>Part</th></tr></thead><tbody>${s.sellerTypes.map(([label,count])=>`<tr><td>${esc(label)}</td><td>${count}</td><td>${Math.round(count/s.sellerAnswered*100)} %</td></tr>`).join('')}</tbody></table></div>`:'<p class="sub">Aucune réponse exploitable.</p>'}</section>
+ <section class="panel product-comparison"><h2>Achats visiteurs / VIP et meilleures ventes exposants</h2><div class="product-compare-legend"><span><i class="buyers"></i>Acheteurs · ${chart.buyerAnswered} répondants</span><span><i class="sellers"></i>Vendeurs · ${chart.sellerAnswered} répondants</span></div>${chart.products.length?`<div class="product-compare-axis" aria-hidden="true"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div><div class="product-compare-chart" role="group" aria-label="Comparaison en pourcentage des répondants, échelle de 0 à 100 %">${chart.products.map(p=>`<div class="product-compare-row"><span>${esc(p.label)}</span><div>${bar('Acheteurs',p.buyerPercent,p.buyerCount,chart.buyerAnswered,'buyers')}${bar('Vendeurs',p.sellerPercent,p.sellerCount,chart.sellerAnswered,'sellers')}</div></div>`).join('')}</div>`:'<p class="sub">Aucune réponse exploitable.</p>'}<p class="sub product-compare-note">Part des répondants ayant sélectionné chaque produit, calculée séparément pour les acheteurs et les vendeurs. Plusieurs choix possibles : le total peut dépasser 100 %. Les gammes de Singles sont regroupées en cartes à l’unité, une seule fois par répondant. — : aucune réponse exploitable ou catégorie non proposée dans ce formulaire. Les acheteurs déclarent leurs achats ; les vendeurs citent leurs meilleures ventes.</p></section>`;
 }
 export function summaryEvidence(rows,forms={}){
  const comments=[];

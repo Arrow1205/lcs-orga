@@ -404,3 +404,14 @@ button,a,input,select,textarea{touch-action:manipulation}
 .persona-hero span{font-size:10px;font-weight:400;padding:3px 6px;background:transparent;color:#ffffffb3}
 .persona-insights details{font-size:12px;color:var(--muted)}
 .persona-insights details p{font-size:12px;margin-top:8px}
+
+/* Comparaison des perceptions d’achat et de vente, même échelle 0–100 %. */
+.product-compare-legend{display:flex;flex-wrap:wrap;gap:12px 24px;margin:14px 0 22px;font-size:12px;color:var(--muted)}
+.product-compare-legend span{display:flex;align-items:center;gap:7px}.product-compare-legend i{width:12px;height:12px;border-radius:3px}
+.product-compare-legend .buyers,.product-compare-bar.buyers i{background:#1303e3}.product-compare-legend .sellers,.product-compare-bar.sellers i{background:#f96927}
+.product-compare-axis{display:flex;justify-content:space-between;margin-left:232px;margin-right:55px;font-size:10px;color:var(--muted)}
+.product-compare-chart{display:grid;gap:16px;margin:10px 0 20px}.product-compare-row{display:grid;grid-template-columns:220px minmax(0,1fr);align-items:center;gap:12px}.product-compare-row>span{font-size:13px;overflow-wrap:anywhere}
+.product-compare-row>div{display:grid;gap:5px}.product-compare-bar{display:grid;grid-template-columns:minmax(0,1fr) 43px;gap:12px;align-items:center}.product-compare-bar strong{font-size:12px;font-weight:600;text-align:right}
+.product-compare-track{height:12px;border-radius:3px;background:var(--line);overflow:hidden}.product-compare-track i{display:block;height:100%;border-radius:3px}.product-compare-note{font-size:12px;line-height:1.5}
+.dark .product-compare-legend .buyers,.dark .product-compare-bar.buyers i{background:#938bff}.persona-card-visual .persona-summary{font-weight:400}
+@media(max-width:600px){.product-compare-row{grid-template-columns:1fr;gap:7px}.product-compare-axis{margin-left:0}.product-compare-chart{gap:22px}}

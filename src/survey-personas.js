@@ -19,7 +19,7 @@ function split(records,forms){
  }}return best;
 }
 function segments(records,forms){if(records.length<2||!supported(records,forms))return [];const s=split(records,forms);return s?[s.yes,s.no]:[records]}
-function themes(records,field,forms){return groupComments(records.map(row=>surveyAnswer(row,field,forms)).filter(v=>typeof v==='string'&&v.trim()),field==='highlights'?'highlights':'improvements')}
+function themes(records,field,forms){return groupComments(records.map(row=>surveyAnswer(row,field,forms)).filter(v=>typeof v==='string'&&v.trim()&&(field!=='improvements'||! /^(rien(?: a (?:signaler|redire|ameliorer|changer))?|aucun(?:e)?(?: remarque|suggestion|amelioration)?|non|ras|pas de remarque)$/.test(normalizeVerbatim(v)))),field==='highlights'?'highlights':'improvements')}
 function distinctiveTheme(records,all,field,forms,used){
  const local=themes(records,field,forms),global=themes(all,field,forms);
  const sorted=local.map(g=>({...g,specificity:g.count/records.length-(global.find(x=>x.name===g.name)?.count||0)/Math.max(all.length,1)})).sort((a,b)=>b.specificity-a.specificity||b.count-a.count);
@@ -35,21 +35,25 @@ function profile(records,index,category,all,forms,used){
  const scores=records.map(r=>{const value=surveyAnswer(r,'satisfaction',forms);const q=surveyQuestion(r,'satisfaction',forms);return typeof value==='number'&&value>=0&&value<=(q?.kind==='rating10'?10:5)?value*10/(q?.kind==='rating10'?10:5):null}).filter(v=>v!==null);
  const average=scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:null;
  const name=names[index%names.length],gender=facts.find(f=>f.key==='gender')?.value||'',image=/femme/i.test(gender)?`/personas/women${index%3+1}.png`:/homme/i.test(gender)?`/personas/men${index%3+1}.png`:`/personas/${index%2?'women':'men'}${index%3+1}.png`;
- const sentences=[`${name} représente un profil ${sellers?category[1].toLowerCase():`fan de ${category[1]}`} observé dans ${records.length} réponses.`];
- if(purchase)sentences.push(`${purchase.count}/${purchase.answered} ${sellers?'citent parmi leurs meilleures ventes':'déclarent acheter'} « ${purchase.value} ».`);
- if(spend.average!==null)sentences.push(`Le panier moyen estimé du groupe est de ${spend.average} € (${spend.count} montants exploitables).`);
- if(duration)sentences.push(`${duration.count}/${duration.answered} restent ${duration.value.toLowerCase()} sur place.`);
- if(sales)sentences.push(`Les ventes sont « ${sales.value} » pour ${sales.count}/${sales.answered} répondants.`);
- if(space)sentences.push(`L’espace est jugé « ${space.value} » par ${space.count}/${space.answered} exposants.`);
- if(average!==null)sentences.push(`La satisfaction moyenne atteint ${average.toFixed(1).replace('.',',')}/10 (${scores.length} notes).`);
- if(returning.answered)sentences.push(`${returning.yes}/${returning.answered} réponses Oui/Non indiquent une intention de revenir${returning.undecided?`, avec ${returning.undecided} indécis supplémentaires`:''}.`);
- if(negative&&average!==null&&average>=7)sentences.push(`La bonne note coexiste avec des remarques sur « ${negative.name} » : c’est un axe d’amélioration au sein d’un groupe globalement satisfait.`);
- const overallSpend=purchaseSpend(all,forms);
- if(!sellers&&spend.count>=2&&overallSpend.count>spend.count&&Math.abs(spend.average-overallSpend.average)>=10)sentences.push(`Ce groupe dépense ${spend.average>overallSpend.average?'davantage':'moins'} que l’ensemble ${category[1]} (${overallSpend.average} € estimés) ; cette différence de panier constitue un axe de segmentation, sans présumer son pouvoir d’achat.`);
- if(returning.no&&negative)sentences.push(`La présence de ${returning.no} intention(s) de ne pas revenir invite à examiner les irritants « ${negative.name} », sans pouvoir leur attribuer la décision de ces personnes.`);
- const motivation=positive?`${positive.count}/${records.length} retours citent « ${positive.name} ». Exemple : « ${positive.quote.text} ».`:purchase?`${purchase.count}/${purchase.answered} réponses convergent vers « ${purchase.value} ». C’est le principal intérêt déclaré de ce groupe.`:'Aucune motivation suffisamment documentée dans les réponses de ce groupe.';
- const frustration=negative?`${negative.count}/${records.length} retours évoquent « ${negative.name} ». Exemple : « ${negative.quote.text} ».`:'Aucune frustration documentée ne ressort pour ce groupe.';
- const evidence=[...facts.map(f=>({field:f.key,value:f.value,count:f.count,answered:f.answered})),...(positive?[{field:'highlights',theme:positive.name,count:positive.count,quote:positive.quote.text}]:[]),...(negative?[{field:'improvements',theme:negative.name,count:negative.count,quote:negative.quote.text}]:[])];
+ const pronoun=/femme/i.test(gender)?'Elle':'Il',lower=pronoun.toLowerCase(),satisfied=average!==null&&average>=7,verySatisfied=average!==null&&average>=9;
+ const purchaseText=purchase?.value.replace(/carte\(s\)/gi,'cartes').replace(/a l unite/i,'à l’unité').toLowerCase();
+ const status=category[2]==='Professionnel'?'vendeur professionnel':category[2]==='Partenaire'?'partenaire du salon':'vendeur particulier';
+ const sentences=[sellers?`${name} est un ${status}${purchaseText?`, dont les meilleures ventes portent sur ${purchaseText}`:''}.`:`${name} est fan de ${category[1]}${purchaseText?` et vient au Lille Card Show pour trouver ${purchaseText}`:'.'}${purchaseText?'.':''}`];
+ if(!sellers){
+  const allDay=duration&&/toute la journee|journee entiere/.test(normalizeVerbatim(duration.value));
+  if(spend.average!==null)sentences.push(`${pronoun} consacre environ ${spend.average} € à ses achats${allDay?' et profite du salon toute la journée':duration?` lors d’une visite de ${duration.value.toLowerCase()}`:''}.`);
+  else if(duration)sentences.push(allDay?`${pronoun} profite du salon toute la journée.`:`Sa visite dure généralement ${duration.value.toLowerCase()}.`);
+ }else if(sales){const n=normalizeVerbatim(sales.value);sentences.push(/tres inferieures|inferieures/.test(n)?'Ses ventes restent en dessous de ses attentes.':/superieures/.test(n)?'Ses ventes dépassent ses attentes.':/conformes/.test(n)?'Ses ventes correspondent à ses attentes.':`Concernant ses ventes : « ${sales.value} ».`);}
+ if(satisfied)sentences.push(`${verySatisfied?'Très satisfait':'Satisfait'}${/femme/i.test(gender)?'e':''} de son expérience${returning.percent===null?'':returning.percent>50?', '+lower+' souhaite revenir aux prochaines éditions':', '+lower+' garde néanmoins des réserves sur une prochaine participation'}.`);
+ else if(average!==null&&average<5)sentences.push(`Son expérience reste décevante${returning.percent!==null&&returning.percent<50?' et son retour à une prochaine édition est incertain':''}.`);
+ else if(returning.percent!==null)sentences.push(returning.percent>50?`${pronoun} souhaite revenir lors d’une prochaine édition.`:returning.percent<50?'Sa participation à une prochaine édition reste incertaine.':'Son envie de revenir reste partagée.');
+ const expectations={'Confort et restauration':'davantage de confort et une meilleure offre de restauration','Forte affluence':'une circulation plus fluide pour accéder aux stands','Attente et entrée':'une entrée plus fluide et moins d’attente','Prix et valeur':'un meilleur rapport qualité/prix','Exposants et offre':'une offre de stands et de produits mieux adaptée','Zones et signalétique':'des zones plus faciles à repérer','Animations':'des animations mieux adaptées'};
+ if(negative?.name==='Confort et restauration'){const text=normalizeVerbatim(negative.quotes.map(q=>q.text).join(' ')),comfort=/confort|chaleur|chaud|bruit|assise|siege|toilette/.test(text),food=/restauration|repas|boisson|food truck/.test(text);expectations[negative.name]=comfort&&food?'davantage de confort et une meilleure offre de restauration':food?'une meilleure offre de restauration':'davantage de confort sur place';}
+ if(negative)sentences.push(expectations[negative.name]?`Son attente principale : ${expectations[negative.name]}.`:`Son point de vigilance : « ${negative.quote.text} ».`);
+ else if(sellers&&space&&/trop petit/.test(normalizeVerbatim(space.value)))sentences.push('Son attente principale : davantage d’espace pour exposer dans de bonnes conditions.');
+ const motivation=positive?`Ce qui lui plaît : ${positive.name.toLowerCase()}. « ${positive.quote.text} ».`:purchase?`${sellers?'Vendre':'Trouver'} ${purchaseText}.`:'Aucune motivation précise ne ressort des retours disponibles.';
+ const frustration=negative?expectations[negative.name]?`Son besoin : ${expectations[negative.name]}.`:`« ${negative.quote.text} ».`:'Aucune frustration documentée ne ressort pour ce profil.';
+ const evidence=[...(spend.average!==null?[{field:'averageSpend',value:`Panier moyen estimé : ${spend.average} €`,count:spend.count}]:[]),...(average!==null?[{field:'averageSatisfaction',value:`Satisfaction moyenne : ${average.toFixed(1)}/10`,count:scores.length}]:[]),...(returning.answered?[{field:'returning',value:`Retour : ${returning.yes} Oui, ${returning.no} Non, ${returning.undecided} indécis`,count:returning.answered}]:[]),...facts.map(f=>({field:f.key,value:f.value,count:f.count,answered:f.answered})),...(positive?[{field:'highlights',theme:positive.name,count:positive.count,quote:positive.quote.text}]:[]),...(negative?[{field:'improvements',theme:negative.name,count:negative.count,quote:negative.quote.text}]:[])];
  return {id:`${category[0]}-${index%2+1}`,number:index%2+1,name,image,count:records.length,facts,summary:sentences.join(' '),motivation,frustration,evidence};
 }
 export function generatePersonas(rows,forms={}){

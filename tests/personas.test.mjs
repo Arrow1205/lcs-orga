@@ -45,8 +45,8 @@ test('les profils globaux et communautaires découlent des réponses et gardent 
  const html=personasMarkup(rows,true);
  assert.match(html,/Géraldine|Camille|Nora|Inès|Lina|Laura|Alex|Samir|Julien|Thomas|Mehdi|Maxime/);
  assert.match(html,/fan de/);
- assert.match(html,/restent 2 à 3 heures sur place/);
- assert.match(html,/panier moyen estimé du groupe est de 50 €/);
+ assert.match(html,/visite de 2 à 3 heures/);
+ assert.match(html,/consacre environ 50 € à ses achats/);
  assert.match(html,/Éléments qui fondent ce profil/);
  assert.match(html,/persona-card-visual/);
  assert.match(html,/personas\/(women|men)[123]\.png/);
@@ -75,4 +75,13 @@ test('ne fabrique pas les profils manquants et ignore le filtre communautaire gl
  const rendered=surveyResultsMarkup(rows,'personas',2026,{community:'Soccer',personasGenerated:true});
  assert.match(rendered,/Il faut au moins deux réponses comparables/);
  assert.match(rendered,/1 réponse analysée/);
+});
+
+
+test('présentation persona : récit court, budget conservé, effectifs et notes dans les sources',()=>{
+ const rows=Array.from({length:4},()=>visitor(['Basket'],'25–34','Homme',"Carte(s) à l'unité",{q_spend:'157 €',q_duration:'Toute la journée',q_satisfaction:9.2,q_improvements:'Plus de restauration et des sièges'}));
+ const profile=generatePersonas(rows).global[0];
+ assert.match(profile.summary,/fan de Basket/);assert.match(profile.summary,/157 €/);assert.match(profile.summary,/toute la journée/);assert.match(profile.summary,/souhaite revenir/);assert.match(profile.summary,/confort.*restauration/);
+ assert.doesNotMatch(profile.summary,/réponse|répondant|\d+\/\d+|\d+ %|9[,.]2/);assert.ok(profile.summary.length<600);
+ assert.ok(profile.evidence.some(e=>e.field==='averageSpend'&&e.count===4));assert.ok(profile.evidence.some(e=>e.field==='returning'));
 });
