@@ -22,7 +22,7 @@ test('salon, exposants, pins, assets et couleurs des animations restent enregist
  assert.equal(document.querySelectorAll('.zone-donut').length,4);
  assert.match(document.querySelector('.overview-attendance').textContent,/2\s*\/\s*120/);
  assert.match(document.querySelector('.overview-attendance > :last-child').textContent,/3/);
- assert.match(document.querySelector('.finance-card.balance .k').textContent,/Budget restant/);
+ assert.match(document.querySelector('.finance-card.balance .k').textContent,/Delta/);
 
  document.querySelector('[data-view="salon"]').click();
  const first=document.querySelector('[data-salon-text="contactFirst"]');first.value='Clara';first.dispatchEvent(new Event('change',{bubbles:true}));

@@ -9,12 +9,12 @@ export function vendorType(value) {
 }
 export const vendorLabel = value => value === 'Collectionneur' ? 'Particulier' : value;
 export function tableCount(value, fallback = 1) {
- const count = Number(String(value ?? '').trim().replace(',', '.'));
+ const count = Number(String(value ?? '').trim().replace(/\s+tables?$/i,'').replace(',', '.'));
  return Number.isInteger(count) && count >= 1 ? count : Math.max(1, Math.floor(Number(fallback) || 1));
 }
 export function exhibitorAmount(type, tables, settings) {
  if (type === 'Partenaire') return Math.round(Math.max(0, Number(settings.exhibitorPartnerPrice ?? 1500) || 0) * 100) / 100;
- const key = {Pro: 'proTablePrice', Collectionneur: 'collectorTablePrice', Artiste: 'artistTablePrice'}[type];
+ const key = {Pro: 'proTablePrice', Collectionneur: 'collectorTablePrice', Particulier: 'collectorTablePrice', Artiste: 'artistTablePrice'}[type];
  return key ? Math.round(Math.max(0, Number(settings[key]) || 0) * tableCount(tables) * 100) / 100 : null;
 }
 export function importMapping(headers) {
@@ -25,6 +25,7 @@ export function importMapping(headers) {
   phone: ['Téléphone', 'Telephone participant', 'Numéro de téléphone', 'Mobile', 'Tel'],
   email: ['eMail', 'Mail', 'adresse eMail', 'Email participant', 'Email payeur'],
   tables: ['Nbre TABLES ?', 'Nombre de tables', 'Nb tables', 'Nbre tables', 'Tables', 'Quantité'],
+  zone: ['Zone affecté', 'Zone affectée', 'Zone attribuée', 'Zone', 'Emplacement'],
   community: ['Quel sport ? Quelle communauté (Pokemon, Magic, Yugi-Oh! ...)', 'Sport', 'Communauté'],
   order: ['Référence commande', 'Référence de commande'], ticket: ['Numéro de billet', 'Identifiant billet'],
   rate: ['Tarif', 'Formule'], amount: ['Montant tarif', 'Montant du tarif'], status: ['Statut de la commande', 'Statut']

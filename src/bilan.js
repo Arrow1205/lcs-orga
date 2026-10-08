@@ -1,4 +1,5 @@
-export const defaultCategories=[{id:'expense-invoices',side:'expense',title:'Factures payées'},{id:'expense-hall',side:'expense',title:'Location de salle'},{id:'expense-other',side:'expense',title:'Autres dépenses'},{id:'sale-tickets',side:'sale',title:'Billetterie'},{id:'sale-partners',side:'sale',title:'Partenaires'},{id:'sale-other',side:'sale',title:'Ventes'}];
+import {activeExhibitor,engagedPartner,exhibitorRevenue,partnerRevenue} from './participation.js';
+export const defaultCategories=[{id:'expense-invoices',side:'expense',title:'Factures payées'},{id:'expense-hall',side:'expense',title:'Location de salle'},{id:'expense-other',side:'expense',title:'Autres dépenses'},{id:'sale-tickets',side:'sale',title:'Billetterie'},{id:'sale-tables',side:'sale',title:'Tables / Stands'},{id:'sale-partners',side:'sale',title:'Partenaires'},{id:'sale-other',side:'sale',title:'Ventes'}];
 export const cents=value=>Math.round((Number(String(value??0).replace(',','.'))||0)*100);
 export function bilanData(db){
  const categories=[...defaultCategories,...(db.ledger_categories||[])];
@@ -8,7 +9,8 @@ export function bilanData(db){
  const derived=(sourceId,title,side,categoryId,amount,sourceKind)=>{const amountCents=cents(amount),a=assignments.get(sourceId);if(amountCents>0&&!a?.excluded)rows.push({id:'auto:'+sourceId,sourceId,title,side,categoryId:a?.categoryId||categoryId,amountCents,order:a?.order??0,sourceKind});};
  derived('hall-rental','Location de salle','expense','expense-hall',db.forecast2027?.hallRental,'hall');
  for(const [key,label] of [['general','Entrée'],['vip','Pack VIP'],['early','Early access']])derived('ticket:'+key,label+' · volume estimé','sale','sale-tickets',(Number(db.settings?.[key+'Price'])||0)*(Number(db.settings?.[key+'Quantity'])||0),'ticket');
- for(const partner of db.partners||[]){if(partner.status!=='Terminé')continue;const amount=partner.amountForced?partner.amount:Number(partner.quantity||0)*Number(partner.unit==='m²'?db.settings?.partnerSqmPrice:db.settings?.partnerTablePrice);derived('partner:'+partner.id,'Partenaire · '+(partner.company||partner.name||'Sans nom'),'sale','sale-partners',amount,'partner');}
+ for(const exhibitor of db.exhibitors||[]){if(activeExhibitor(exhibitor))derived('exhibitor:'+exhibitor.id,'Exposant · '+(exhibitor.company||exhibitor.name||[exhibitor.first,exhibitor.last].filter(Boolean).join(' ')||'Sans nom'),'sale','sale-tables',exhibitorRevenue(exhibitor,db.settings),'exhibitor');}
+ for(const partner of db.partners||[]){if(!engagedPartner(partner))continue;derived('partner:'+partner.id,'Partenaire · '+(partner.company||partner.name||'Sans nom'),'sale','sale-tables',partnerRevenue(partner,db.settings),'partner');}
  for(const row of rows)if(!categories.some(c=>c.id===row.categoryId&&c.side===row.side))row.categoryId=row.side==='sale'?'sale-other':'expense-other';
  rows.sort((a,b)=>(a.order||0)-(b.order||0)||a.id.localeCompare(b.id));
  const expenses=rows.filter(x=>x.side==='expense').reduce((n,x)=>n+x.amountCents,0),sales=rows.filter(x=>x.side==='sale').reduce((n,x)=>n+x.amountCents,0),delta=sales-expenses,opening=cents(db.settings?.ncBalance);

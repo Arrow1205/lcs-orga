@@ -140,3 +140,14 @@ Les colonnes `Type`, `Nom`, `Prénom`, `Société`, `Téléphone`, `eMail` et `N
 Pro, particulier et artiste : tarif de la page **Le Salon** × nombre de tables (une par défaut). Exposant partenaire : forfait `settings.exhibitorPartnerPrice`, 1 500 € par défaut, configurable dans Le Salon. Ce forfait est indépendant des tarifs table/m² de la page Partenaires. Le montant source CSV est conservé pour référence ; il ne remplace pas le calcul. Une correction manuelle du montant est conservée lors du réimport, ainsi que les choix, la zone et les commentaires. Le réimport rapproche les références HelloAsso ou l’identité (nom/prénom, email, société/pseudo). Les identités ambiguës sont ignorées et signalées plutôt que fusionnées.
 
 **Aucune migration SQL nécessaire pour cette modification** : les champs sont déjà enregistrés dans les fiches JSON de `crm_records`. Les montants des fiches existantes ne sont pas recalculés à l’ouverture.
+
+
+### Totaux des tables, partenaires et Bilan
+
+L’import affiche « Zone affectée » (nom ou identifiant d’une zone du Salon), sans les sélecteurs référence commande/billet. Les nouveaux exposants sont confirmés par défaut ; une annulation explicite dans le CSV reste une annulation. Les références HelloAsso détectées restent utilisables pour le rapprochement sans encombrer le formulaire.
+
+Les montants automatiques suivent les tarifs actuels du Salon dans les listes, les totaux par communauté et le Bilan. Les corrections manuelles et les anciens montants non nuls sans indication d’automatisme sont conservés. Un ancien montant nul sans correction manuelle est calculé depuis son type et ses tables. Les cartes Basket/Soccer/Sports US/TCG comptent les communautés même sans zone attribuée ; le remplissage des zones reste calculé à partir de l’affectation réelle.
+
+Le Bilan ajoute une ligne source par exposant hors annulation et par partenaire engagé (Accord, Confirmé, Validé, Terminé ou Payé) dans « Tables / Stands ». Les prospects et partenaires refusés sont exclus. Les lignes suivent les montants des fiches et ne sont pas ajoutées plusieurs fois lors des rafraîchissements. Les reclassements manuels restent possibles. Le total des partenaires reprend les mêmes statuts. Les trois KPI financiers de la Vue d’ensemble et leur détail utilisent exclusivement les lignes du Bilan, dont les saisies manuelles, avec des calculs en centimes.
+
+Aucune nouvelle migration SQL : ces calculs sont dérivés des tables existantes. La migration `004_bilan.sql` reste nécessaire si le Bilan n’a jamais été activé.
