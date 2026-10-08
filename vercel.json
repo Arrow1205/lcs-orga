@@ -89,6 +89,14 @@
     {
       "source": "/reglages",
       "destination": "/index.html"
+    },
+    {
+      "source": "/mes-taches",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/mur-echange",
+      "destination": "/index.html"
     }
   ],
   "functions": {

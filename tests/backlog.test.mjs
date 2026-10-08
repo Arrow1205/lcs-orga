@@ -24,7 +24,7 @@ test('board shares dated tasks with list/calendar and records completion',async(
  const t=api.getState().tasks[0];assert.equal(t.due,'2026-10-08');assert.equal(t.columnId,'backlog');
  document.querySelector('[data-task-drag]').dispatchEvent(new Event('dragstart',{bubbles:true}));document.querySelector('[data-task-drop="member-'+editor+'"]').dispatchEvent(new Event('drop',{bubbles:true,cancelable:true}));assert.equal(api.getState().tasks[0].assigneeId,editor);
  const check=document.querySelector('[data-task-complete]');check.checked=true;check.dispatchEvent(new Event('change',{bubbles:true}));assert.equal(api.getState().tasks[0].completedBy,editor);assert.equal(api.getState().tasks[0].completedActorId,admin);
- document.querySelector('[data-tab="tasks:list"]').click();assert.match(document.querySelector('tbody').textContent,/Plan grand écran/);assert.match(document.querySelector('tbody').textContent,/Camille/);
+ assert.equal(document.querySelector('[data-tab="tasks:list"]'),null);document.querySelector('[data-view="mytasks"]').click();assert.doesNotMatch(document.getElementById('content').textContent,/Plan grand écran/);document.querySelector('[data-view="tasks"]').click();
  document.querySelector('[data-tab="tasks:calendar"]').click();assert.ok(document.querySelector('[data-edit="tasks:'+t.id+'"]'));
  document.querySelector('[data-tab="tasks:backlog"]').click();document.querySelector('[data-column-add]').click();form=document.getElementById('taskColumnForm');form.elements.title.value='Impressions';form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));assert.ok(api.getState().settings.taskColumns.some(c=>c.title==='Impressions'));
  dom.window.close();
