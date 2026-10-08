@@ -1,214 +1,73 @@
-import {communityValues,answerFor,questionFor} from './visitor-feedback.js';
+import {communityValues} from './visitor-feedback.js';
+import {surveyAnswer,sellerType,surveyQuestion,frequency,purchaseSpend,returningStats} from './survey-analytics.js';
 import {normalizeVerbatim,groupComments} from './feedback-themes.js';
 
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const typeNames={visiteur:'Visiteur',vip:'VIP / Early Access',exposant:'Exposant / partenaire'};
-const known=[['returnIntent','Envie de revenir'],['age','Âge'],['gender','Genre'],['ticket','Type de visiteur'],['purchase','Achats'],['duration','Temps passé'],['discovery','Découverte du salon'],['spend','Panier moyen'],['companions','Contexte de venue'],['satisfaction','Satisfaction globale'],['highlights','Point fort'],['improvements','Point de friction']];
-const fallback=[['premiumType','Billet'],['participation','Participation'],['vendorType','Type d’exposant'],['zone','Zone'],['premiumValue','Valeur du billet']];
-const excluded=/\b(nom|prenom|identite|societe|telephone|email|mail|contact|adresse)\b/;
-const scalar=value=>typeof value==='string'&&value.trim()?value.trim():typeof value==='number'&&Number.isFinite(value)?String(value):null;
-const list=value=>Array.isArray(value)?value.filter(v=>typeof v==='string'&&v.trim()).map(v=>v.trim()):scalar(value)?[scalar(value)]:[];
-
-function responses(row){
- const values=new Map([['type',{label:'Formulaire',value:typeNames[row.type]||row.type,priority:0}]]);
- const communities=communityValues(row).filter(Boolean);
- if(communities.length)values.set('community',{label:'Communauté',value:communities.sort((a,b)=>a.localeCompare(b,'fr')).join(' · '),priority:1,multi:communities});
- for(const [index,[field,label]] of known.entries()){
-  const raw=answerFor(row,field),items=list(raw);
-  if(items.length)values.set(field,{label,value:items.join(' · '),priority:index+2,multi:items});
- }
- for(const [index,[key,label]] of fallback.entries()){
-  const items=list(row.answers?.[key]);
-  if(items.length)values.set(key,{label,value:items.join(' · '),priority:index+known.length+2,multi:items});
- }
- for(const question of row.questions||[]){
-  if(!['choice','dropdown','checkbox','rating','rating10'].includes(question.kind)||excluded.test(normalizeVerbatim(question.label)))continue;
-  if(known.some(([field])=>questionFor(row,field)?.key===question.key)||questionFor(row,'community')?.key===question.key)continue;
-  const items=list(row.answers?.[question.key]).sort((a,b)=>a.localeCompare(b,'fr'));
-  if(!items.length)continue;
-  const label=String(question.label||question.key).trim();
-  const id='q:'+normalizeVerbatim(label);
-  if(!values.has(id))values.set(id,{label,value:items.join(' · '),priority:100,multi:items});
- }
- return values;
-}
-
-const rawValue=(record,key)=>record.values.get(key)?.value;
-const valuesFor=(record,key)=>record.values.get(key)?.multi||list(rawValue(record,key));
-function splitCandidate(records){
- const keys=[...new Set(records.flatMap(record=>[...record.values.keys()]))];
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const meaningful=['purchase','spend','duration','returnIntent','bestSellers','revenue','spaceFit','spaceLimit','flow','salesExpectations','bookingType'];
+const categories=[['community-basket','Basket','Basket'],['community-soccer','Soccer','Soccer'],['community-tcg','TCG','TCG'],['community-sports-us','Sports US','Sports US'],['seller-particulier','Vendeurs particuliers','Particulier'],['seller-professionnel','Vendeurs professionnels','Professionnel'],['seller-partenaire','Partenaires','Partenaire']];
+const known=[['age','Âge'],['gender','Genre'],['purchase','Achats'],['spend','Panier'],['duration','Temps sur place'],['returnIntent','Retour'],['bestSellers','Produits vendus'],['revenue','Chiffre d’affaires'],['spaceFit','Espace'],['spaceLimit','Manque de place'],['flow','Flux visiteurs'],['salesExpectations','Ventes / attentes']];
+function entries(records,field,forms){return frequency(records.map(row=>surveyAnswer(row,field,forms)))}
+function fact(records,field,label,forms){const values=entries(records,field,forms),answered=records.filter(r=>{const v=surveyAnswer(r,field,forms);return Array.isArray(v)?v.length:v!==undefined&&v!==null&&v!==''}).length;const top=values[0];return top?{key:field,label,value:top[0],count:top[1],answered}:null}
+function supported(records,forms){return meaningful.some(field=>entries(records,field,forms).some(([,n])=>n>=2));}
+function split(records,forms){
  let best=null;
- for(const key of keys){
-  if(records.some(record=>!rawValue(record,key)))continue;
-  const counts=new Map();
-  for(const record of records)for(const value of valuesFor(record,key))counts.set(value,(counts.get(value)||0)+1);
-  for(const [value,count] of counts){
-   if(count<2||records.length-count<2)continue;
-   const priority=records[0].values.get(key)?.priority??100;
-   const candidate={key,value,priority,balance:Math.min(count,records.length-count)};
-   if(!best||priority<best.priority||priority===best.priority&&candidate.balance>best.balance||priority===best.priority&&candidate.balance===best.balance&&`${key}:${value}`.localeCompare(`${best.key}:${best.value}`,'fr')<0)best=candidate;
-  }
- }
- return best;
+ for(const field of meaningful){const values=entries(records,field,forms);for(const [value] of values){
+  const yes=records.filter(row=>{const raw=surveyAnswer(row,field,forms);return Array.isArray(raw)?raw.includes(value):raw===value});
+  const no=records.filter(row=>!yes.includes(row)&&surveyAnswer(row,field,forms)!==undefined&&surveyAnswer(row,field,forms)!==null&&surveyAnswer(row,field,forms)!=='');
+  if(yes.length<2||no.length<2||yes.length+no.length!==records.length||!supported(yes,forms)||!supported(no,forms))continue;
+  const score=Math.min(yes.length,no.length);if(!best||score>best.score)best={score,yes,no,field,value};
+ }}return best;
 }
-
-function segment(records,target){
- if(records.length<2)return [];
- const groups=[records];
- while(groups.length<target){
-  const candidates=groups.map((group,index)=>({index,group,split:splitCandidate(group)})).filter(item=>item.split).sort((a,b)=>b.group.length-a.group.length||a.index-b.index);
-  if(!candidates.length)break;
-  const {index,group,split}=candidates[0];
-  const matches=item=>valuesFor(item,split.key).includes(split.value);
-  const left=group.filter(matches),right=group.filter(item=>!matches(item));
-  groups.splice(index,1,left,right);
- }
- return groups.sort((a,b)=>b.length-a.length);
+function segments(records,forms){if(records.length<2||!supported(records,forms))return [];const s=split(records,forms);return s?[s.yes,s.no]:[records]}
+function themes(records,field,forms){return groupComments(records.map(row=>surveyAnswer(row,field,forms)).filter(v=>typeof v==='string'&&v.trim()),field==='highlights'?'highlights':'improvements')}
+function distinctiveTheme(records,all,field,forms,used){
+ const local=themes(records,field,forms),global=themes(all,field,forms);
+ const sorted=local.map(g=>({...g,specificity:g.count/records.length-(global.find(x=>x.name===g.name)?.count||0)/Math.max(all.length,1)})).sort((a,b)=>b.specificity-a.specificity||b.count-a.count);
+ const theme=sorted.find(g=>g.quotes.some(q=>!used.has(normalizeVerbatim(q.text))))||sorted[0];
+ if(!theme)return null;const quote=theme.quotes.find(q=>!used.has(normalizeVerbatim(q.text)))||theme.quotes[0];used.add(normalizeVerbatim(quote.text));return {...theme,quote};
 }
-
-function counts(records,key){
- const map=new Map();let answered=0;
- for(const record of records){
-  const values=valuesFor(record,key).filter(Boolean);
-  if(!values.length)continue;
-  answered++;
-  for(const value of new Set(values))map.set(value,(map.get(value)||0)+1);
- }
- return {answered,entries:[...map].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'fr'))};
+const names=['Alex','Camille','Samir','Nora','Julien','Inès','Thomas','Lina','Mehdi','Laura','Maxime','Géraldine','Lou','Robin'];
+function profile(records,index,category,all,forms,used){
+ const facts=known.map(([field,label])=>fact(records,field,label,forms)).filter(f=>f&&f.count>=2&&f.count/f.answered>.5);
+ const sellers=category[0].startsWith('seller-'),spend=purchaseSpend(records,forms),returning=returningStats(records,forms);
+ const positive=distinctiveTheme(records,all,'highlights',forms,used.positive),negative=distinctiveTheme(records,all,'improvements',forms,used.negative);
+ const purchase=facts.find(f=>f.key===(sellers?'bestSellers':'purchase')),duration=facts.find(f=>f.key==='duration'),sales=facts.find(f=>f.key==='salesExpectations'),space=facts.find(f=>f.key==='spaceFit');
+ const scores=records.map(r=>{const value=surveyAnswer(r,'satisfaction',forms);const q=surveyQuestion(r,'satisfaction',forms);return typeof value==='number'&&value>=0&&value<=(q?.kind==='rating10'?10:5)?value*10/(q?.kind==='rating10'?10:5):null}).filter(v=>v!==null);
+ const average=scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:null;
+ const name=names[index%names.length],gender=facts.find(f=>f.key==='gender')?.value||'',image=/femme/i.test(gender)?`/personas/women${index%3+1}.png`:/homme/i.test(gender)?`/personas/men${index%3+1}.png`:`/personas/${index%2?'women':'men'}${index%3+1}.png`;
+ const sentences=[`${name} représente un profil ${sellers?category[1].toLowerCase():`fan de ${category[1]}`} observé dans ${records.length} réponses.`];
+ if(purchase)sentences.push(`${purchase.count}/${purchase.answered} ${sellers?'citent parmi leurs meilleures ventes':'déclarent acheter'} « ${purchase.value} ».`);
+ if(spend.average!==null)sentences.push(`Le panier moyen estimé du groupe est de ${spend.average} € (${spend.count} montants exploitables).`);
+ if(duration)sentences.push(`${duration.count}/${duration.answered} restent ${duration.value.toLowerCase()} sur place.`);
+ if(sales)sentences.push(`Les ventes sont « ${sales.value} » pour ${sales.count}/${sales.answered} répondants.`);
+ if(space)sentences.push(`L’espace est jugé « ${space.value} » par ${space.count}/${space.answered} exposants.`);
+ if(average!==null)sentences.push(`La satisfaction moyenne atteint ${average.toFixed(1).replace('.',',')}/10 (${scores.length} notes).`);
+ if(returning.answered)sentences.push(`${returning.yes}/${returning.answered} réponses Oui/Non indiquent une intention de revenir${returning.undecided?`, avec ${returning.undecided} indécis supplémentaires`:''}.`);
+ if(negative&&average!==null&&average>=7)sentences.push(`La bonne note coexiste avec des remarques sur « ${negative.name} » : c’est un axe d’amélioration au sein d’un groupe globalement satisfait.`);
+ const overallSpend=purchaseSpend(all,forms);
+ if(!sellers&&spend.count>=2&&overallSpend.count>spend.count&&Math.abs(spend.average-overallSpend.average)>=10)sentences.push(`Ce groupe dépense ${spend.average>overallSpend.average?'davantage':'moins'} que l’ensemble ${category[1]} (${overallSpend.average} € estimés) ; cette différence de panier constitue un axe de segmentation, sans présumer son pouvoir d’achat.`);
+ if(returning.no&&negative)sentences.push(`La présence de ${returning.no} intention(s) de ne pas revenir invite à examiner les irritants « ${negative.name} », sans pouvoir leur attribuer la décision de ces personnes.`);
+ const motivation=positive?`${positive.count}/${records.length} retours citent « ${positive.name} ». Exemple : « ${positive.quote.text} ».`:purchase?`${purchase.count}/${purchase.answered} réponses convergent vers « ${purchase.value} ». C’est le principal intérêt déclaré de ce groupe.`:'Aucune motivation suffisamment documentée dans les réponses de ce groupe.';
+ const frustration=negative?`${negative.count}/${records.length} retours évoquent « ${negative.name} ». Exemple : « ${negative.quote.text} ».`:'Aucune frustration documentée ne ressort pour ce groupe.';
+ const evidence=[...facts.map(f=>({field:f.key,value:f.value,count:f.count,answered:f.answered})),...(positive?[{field:'highlights',theme:positive.name,count:positive.count,quote:positive.quote.text}]:[]),...(negative?[{field:'improvements',theme:negative.name,count:negative.count,quote:negative.quote.text}]:[])];
+ return {id:`${category[0]}-${index%2+1}`,number:index%2+1,name,image,count:records.length,facts,summary:sentences.join(' '),motivation,frustration,evidence};
 }
-function dominant(records,key){
- const result=counts(records,key),entry=result.entries[0];
- if(!entry)return null;
- return {label:records.find(r=>r.values.has(key))?.values.get(key).label||key,value:entry[0],count:entry[1],answered:result.answered,priority:records.find(r=>r.values.has(key))?.values.get(key).priority??100};
+export function generatePersonas(rows,forms={}){
+ const valid=rows.filter(r=>['visiteur','vip','exposant'].includes(r.type)),used={positive:new Set(),negative:new Set()};let index=0;
+ const groups=categories.map(category=>{
+  const records=valid.filter(row=>category[0].startsWith('seller-')?sellerType(row,forms)===category[2]:row.type!=='exposant'&&communityValues({...row,questions:row.questions?.length?row.questions:forms[row.type]?.questions||[]}).includes(category[2]));
+  const subsets=segments(records,forms);
+  return {id:category[0],name:category[1],total:records.length,profiles:subsets.map((subset,i)=>{const p=profile(subset,index++,category,records,forms,used);p.id=`${category[0]}-${i+1}`;p.number=i+1;return p})};
+ });
+ return {total:valid.length,groups,global:groups.flatMap(g=>g.profiles),communities:groups.filter(g=>g.id.startsWith('community-'))};
 }
-function facts(records){
- const keys=[...new Set(records.flatMap(record=>[...record.values.keys()]))];
- return keys.map(key=>{
-  const fact=dominant(records,key);
-  if(!fact||fact.count<2||fact.count/fact.answered<=.5)return null;
-  return {...fact,key};
- }).filter(Boolean).sort((a,b)=>a.priority-b.priority||b.count-a.count).slice(0,14);
-}
-function moneyValue(value){
- const text=String(value??'').replace(/,/g,'.');
- const nums=[...text.matchAll(/\d+(?:\.\d+)?/g)].map(x=>Number(x[0])).filter(Number.isFinite);
- if(!nums.length)return null;
- if(/plus|\+/.test(text))return nums[0];
- return nums.length>=2?(nums[0]+nums[1])/2:nums[0];
-}
-function averageSpend(records){
- const values=records.map(record=>moneyValue(rawValue(record,'spend'))).filter(value=>Number.isFinite(value));
- if(!values.length)return null;
- return Math.round(values.reduce((sum,value)=>sum+value,0)/values.length/5)*5;
-}
-function phraseJoin(values){
- const unique=[...new Set(values.filter(Boolean))];
- if(unique.length<=1)return unique[0]||'';
- return `${unique.slice(0,-1).join(', ')} et ${unique.at(-1)}`;
-}
-const maleNames=['Alex','Samir','Julien','Thomas','Mehdi','Maxime'];
-const femaleNames=['Géraldine','Camille','Nora','Inès','Lina','Laura'];
-const neutralNames=['Alex','Camille','Samir','Nora','Julien','Inès','Thomas','Lina','Mehdi','Laura'];
-const maleImages=['/personas/men1.png','/personas/men2.png','/personas/men3.png'];
-const femaleImages=['/personas/women1.png','/personas/women2.png','/personas/women3.png'];
-function friction(records){
- const comments=records.map(record=>answerFor(record.row,'improvements')).filter(value=>typeof value==='string'&&value.trim());
- if(!comments.length)return null;
- const group=groupComments(comments,'improvements')[0];
- if(!group)return null;
- const quote=(group.quotes?.[0]?.text||'').replace(/[.!?]+$/,'');
- return {theme:group.name,quote,count:group.count,total:comments.length};
-}
-function returnPhrase(value){
- const normalized=normalizeVerbatim(value);
- if(normalized==='oui')return 'est convaincu de revenir l’an prochain';
- if(normalized.includes('peut etre'))return 'pourrait revenir l’an prochain';
- if(normalized==='non')return 'n’est pas encore convaincu de revenir';
- return value?`a répondu « ${value} » sur son envie de revenir`:'';
-}
-function ageFromBucket(value,index){
- const nums=[...String(value??'').matchAll(/\d+/g)].map(x=>Number(x[0]));
- if(nums.length>=2){const min=nums[0],max=nums[1];return Math.min(max,Math.max(min,min+Math.round((max-min)*((index%5)+1)/6)));}
- return nums[0]||null;
-}
-function profileName(gender,index){
- const n=normalizeVerbatim(gender);
- if(n.includes('femme'))return femaleNames[index%femaleNames.length];
- if(n.includes('homme'))return maleNames[index%maleNames.length];
- return neutralNames[index%neutralNames.length];
-}
-function profileImage(gender,index){
- const n=normalizeVerbatim(gender);
- if(n.includes('femme'))return femaleImages[index%femaleImages.length];
- if(n.includes('homme'))return maleImages[index%maleImages.length];
- return [...maleImages,...femaleImages][index%6];
-}
-function discoveryPhrase(value){
- const n=normalizeVerbatim(value);
- if(/deja venu|precedente edition|edition precedente|lan dernier|annee derniere/.test(n))return 'a connu le salon lors d’une édition précédente';
- if(/instagram|insta/.test(n))return 'a découvert le salon sur Instagram';
- if(/bouche a oreille|ami|amis|proche/.test(n))return 'a découvert le salon par bouche-à-oreille';
- if(/affiche|flyer/.test(n))return 'a découvert le salon grâce à la communication locale';
- return value?`a découvert le salon via ${value}`:'';
-}
-function textTheme(records,field,kind){
- const values=records.map(record=>answerFor(record.row,field)).filter(value=>typeof value==='string'&&value.trim());
- const group=groupComments(values,kind)[0];
- const quote=(group?.quotes?.[0]?.text||values[0]||'').replace(/[.!?]+$/,'');
- return {theme:group?.name||'',quote,count:group?.count||values.length,total:values.length};
-}
-function personaText(records,index){
- const gender=dominant(records,'gender'),community=dominant(records,'community'),age=dominant(records,'age'),companions=dominant(records,'companions'),purchase=dominant(records,'purchase'),returnIntent=dominant(records,'returnIntent'),duration=dominant(records,'duration'),discovery=dominant(records,'discovery'),spend=averageSpend(records);
- const name=profileName(gender?.value,index),exactAge=ageFromBucket(age?.value,index);
- const intro=[name,exactAge?`${exactAge} ans`:age?.value,community?`fan de ${community.value}`:'visiteur du salon'].filter(Boolean).join(', ');
- const details=[];
- if(companions)details.push(String(companions.value).toLowerCase().startsWith('venu')?companions.value:`venu ${companions.value.toLowerCase()}`);
- if(duration)details.push(`reste ${duration.value.toLowerCase()} sur place`);
- if(spend!==null)details.push(`avec un panier moyen estimé à ${spend} €`);
- if(purchase)details.push(`achète surtout ${phraseJoin(valuesForGroup(records,'purchase').slice(0,3)).toLowerCase()}`);
- if(discovery)details.push(discoveryPhrase(discovery.value));
- if(returnIntent)details.push(returnPhrase(returnIntent.value));
- const sentence=details.join(', ');
- return sentence?`${intro}. ${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`:`${intro}.`;
-}
-function motivation(records){
- const positive=textTheme(records,'highlights','highlights');
- if(positive.quote)return positive.quote;
- const purchase=dominant(records,'purchase'),returnIntent=dominant(records,'returnIntent');
- if(purchase&&returnIntent)return `Trouver ${purchase.value.toLowerCase()} et profiter d’un événement qui donne envie de revenir.`;
- if(purchase)return `Trouver ${purchase.value.toLowerCase()} sur place.`;
- return 'Profiter du salon et rencontrer la communauté hobby.';
-}
-function frustration(records){
- const issue=textTheme(records,'improvements','improvements');
- return issue.quote||'Aucune frustration dominante ne ressort clairement dans ce groupe.';
-}
-function valuesForGroup(records,key){
- const {entries}=counts(records,key);
- return entries.map(([value])=>value);
-}
-function persona(group,index,scope='global'){const gender=dominant(group,'gender');return {id:`${scope}-${index+1}`,number:index+1,name:profileName(gender?.value,index),image:profileImage(gender?.value,index),count:group.length,facts:facts(group),summary:personaText(group,index),motivation:motivation(group),frustration:frustration(group)};}
-export function generatePersonas(rows){
- const records=rows.filter(row=>['visiteur','vip','exposant'].includes(row.type)).map(row=>({row,values:responses(row)}));
- const communities=[...new Set(records.flatMap(record=>communityValues(record.row)))].sort((a,b)=>a.localeCompare(b,'fr'));
- return {total:records.length,global:segment(records,5).map((group,index)=>persona(group,index,'global')),communities:communities.map(name=>{
-  const eligible=records.filter(record=>communityValues(record.row).includes(name));
-  const scope='community-'+normalizeVerbatim(name).replace(/\s+/g,'-');
-  return {name,total:eligible.length,profiles:segment(eligible,3).map((group,index)=>persona(group,index,scope))};
- })};
-}
-
-function profileCard(profile,{canEdit=false,overrides={},editing=''}){
+function profileCard(profile,{canEdit=false,overrides={},editing='',narratives={}}){
+ const narrative=narratives[profile.id];if(narrative)profile={...profile,...narrative};
  const summary=overrides[profile.id]??profile.summary;
- return `<article class="panel persona-card persona-card-visual" data-persona-id="${esc(profile.id)}"><div class="persona-hero"><img src="${esc(profile.image)}" alt="Illustration persona"><div><span>${profile.count} réponse${profile.count>1?'s':''} regroupée${profile.count>1?'s':''}</span><h3>${esc(profile.name)}</h3></div></div>${editing===profile.id?`<div class="persona-edit"><textarea rows="5" data-persona-draft="${esc(profile.id)}">${esc(summary)}</textarea><div class="actions"><button type="button" class="btn small" data-persona-cancel>Annuler</button><button type="button" class="btn small primary" data-persona-save="${esc(profile.id)}">Enregistrer</button></div></div>`:`<p class="persona-summary">${esc(summary)}</p>`}<div class="persona-insights"><div><strong>Motivation</strong><p>${esc(profile.motivation)}</p></div><div><strong>Frustration</strong><p>${esc(profile.frustration)}</p></div></div>${canEdit?`<div class="actions persona-actions"><button type="button" class="btn small" data-persona-edit="${esc(profile.id)}">Modifier</button><button type="button" class="btn small danger" data-persona-delete="${esc(profile.id)}">Supprimer</button></div>`:''}</article>`;
+ return `<article class="panel persona-card persona-card-visual" data-persona-id="${esc(profile.id)}"><div class="persona-hero"><img src="${esc(profile.image)}" alt="Illustration persona"><div><span>${profile.count} réponse${profile.count>1?'s':''} regroupée${profile.count>1?'s':''}</span><h3>${esc(profile.name)}</h3></div></div>${editing===profile.id?`<div class="persona-edit"><textarea rows="7" data-persona-draft="${esc(profile.id)}">${esc(summary)}</textarea><div class="actions"><button type="button" class="btn small" data-persona-cancel>Annuler</button><button type="button" class="btn small primary" data-persona-save="${esc(profile.id)}">Enregistrer</button></div></div>`:`${narrative?'<small class="sub">Analyse IA · à relire avec les sources</small>':''}<p class="persona-summary">${esc(summary)}</p>`}<div class="persona-insights"><div><strong>Motivation</strong><p>${esc(profile.motivation)}</p></div><div><strong>Frustration</strong><p>${esc(profile.frustration)}</p></div><details><summary>Éléments qui fondent ce profil</summary>${profile.evidence.map(e=>`<p>${esc(e.quote||e.value||e.theme)} · ${e.count}${e.answered?'/'+e.answered:''} réponse(s)</p>`).join('')}</details></div>${canEdit?`<div class="actions persona-actions"><button type="button" class="btn small" data-persona-edit="${esc(profile.id)}">Modifier</button><button type="button" class="btn small danger" data-persona-delete="${esc(profile.id)}">Supprimer</button></div>`:''}</article>`;
 }
-function cards(profiles,target,options){
- const visible=profiles.filter(profile=>!options.deleted?.has(profile.id));
- return `${visible.length?`<div class="persona-grid">${visible.map(profile=>profileCard(profile,options)).join('')}</div>`:'<p class="sub">Il faut au moins deux réponses comparables pour former un profil.</p>'}${visible.length<target?`<p class="sub">${visible.length}/${target} profils affichés. Les profils manquants ne sont pas inventés.</p>`:''}`;
-}
-
 export function personasMarkup(rows,generated=false,options={}){
- if(!generated)return `<section class="panel persona-intro"><h2>Personas issus des retours</h2><p>Génère jusqu’à 5 profils globaux et 3 profils par communauté, uniquement à partir des réponses de cette édition. Aucun comportement n’est ajouté sans réponse correspondante ; les prénoms servent seulement à rendre les profils plus lisibles.</p><button type="button" class="btn primary" data-survey-generate-personas>Générer les personas</button></section>`;
- const result=generatePersonas(rows),opts={canEdit:false,overrides:{},deleted:new Set(),editing:'',...options};
- return `<div class="persona-dashboard"><section class="panel persona-intro"><div class="panel-head"><div><h2>Personas issus des retours</h2><p class="sub">${result.total} réponse${result.total>1?'s':''} analysée${result.total>1?'s':''} · personas types composés à partir des tendances réelles.</p></div><button type="button" class="btn small" data-survey-generate-personas>Regénérer</button></div><p class="sub">Les personas regroupent les réponses communes de plusieurs visiteurs pour résumer les grands profils en 5 cartes. Tu peux modifier le texte ou supprimer une card affichée.</p></section><section class="persona-section"><h2>Vue globale <small>· ${result.global.filter(profile=>!opts.deleted.has(profile.id)).length}/5</small></h2>${cards(result.global,5,opts)}</section></div>`;
+ if(!generated)return `<section class="panel persona-intro"><h2>Personas issus des retours</h2><p>Jusqu’à deux profils Basket, Soccer, TCG, Sports US, vendeurs particuliers, professionnels et partenaires. Chaque profil exige au moins deux réponses partageant un comportement renseigné ; un second profil exige une différence observable.</p><button type="button" class="btn primary" data-survey-generate-personas>Générer les personas</button></section>`;
+ const result=generatePersonas(rows,options.forms||{}),opts={canEdit:false,overrides:{},deleted:new Set(),editing:'',...options};
+ return `<div class="persona-dashboard"><section class="panel persona-intro"><div class="panel-head"><div><h2>Personas issus des retours</h2><p class="sub">${result.total} réponse${result.total>1?'s':''} analysée${result.total>1?'s':''} · ${result.global.length} profils étayés.</p></div><div class="actions">${opts.aiConfigured&&result.global.length?`<button type="button" class="btn small" data-survey-persona-ai ${opts.aiBusy?'disabled':''}>${opts.aiBusy?'Analyse en cours…':'Approfondir avec l’IA'}</button>`:''}<button type="button" class="btn small" data-survey-generate-personas>Regénérer</button></div></div><p class="sub">Les prénoms et illustrations sont fictifs. Les comportements, montants et citations proviennent des réponses. Les communautés peuvent se recouper ; les profils manquants ne sont pas inventés.</p></section>${result.groups.map(g=>{const profiles=g.profiles.filter(p=>!opts.deleted.has(p.id));return `<section class="persona-section"><h2>${esc(g.name)} <small>· ${profiles.length}/2 profils · ${g.total} réponses disponibles</small></h2>${profiles.length?`<div class="persona-grid">${profiles.map(p=>profileCard(p,opts)).join('')}</div>`:'<p class="sub">Il faut au moins deux réponses comparables et un comportement commun renseigné pour former un profil.</p>'}${profiles.length<2?'<p class="sub">Les profils manquants ne sont pas inventés.</p>':''}</section>`}).join('')}</div>`;
 }

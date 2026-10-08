@@ -90,5 +90,10 @@
       "source": "/reglages",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/feedback-analysis.js": {
+      "maxDuration": 60
+    }
+  }
 }

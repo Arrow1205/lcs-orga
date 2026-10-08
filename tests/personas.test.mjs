@@ -32,20 +32,22 @@ test('les profils globaux et communautaires découlent des réponses et gardent 
   visitor(['TCG'],'35–44','Homme','Cartes TCG')
  ];
  const result=generatePersonas(rows);
- assert.equal(result.global.length,5);
- assert.equal(result.global.reduce((sum,p)=>sum+p.count,0),10);
+ assert.equal(result.groups.length,7);
+ assert.ok(result.global.length>0);
+ assert.ok(result.groups.every(g=>g.profiles.length<=2));
+ assert.equal(result.groups.find(g=>g.name==='Soccer').total,2);
  const basket=result.communities.find(c=>c.name==='Basket');
  assert.equal(basket.total,6);
- assert.equal(basket.profiles.length,3);
+ assert.equal(basket.profiles.length,2);
  assert.equal(basket.profiles.reduce((sum,p)=>sum+p.count,0),6);
  assert.ok(result.global.every(p=>p.count>=2));
  assert.ok(result.global.flatMap(p=>p.facts).every(f=>f.count>=2&&f.count<=f.answered));
  const html=personasMarkup(rows,true);
  assert.match(html,/Géraldine|Camille|Nora|Inès|Lina|Laura|Alex|Samir|Julien|Thomas|Mehdi|Maxime/);
  assert.match(html,/fan de/);
- assert.match(html,/reste 2 à 3 heures sur place/);
- assert.match(html,/panier moyen estimé à 50 €/);
- assert.match(html,/a découvert le salon sur Instagram/);
+ assert.match(html,/restent 2 à 3 heures sur place/);
+ assert.match(html,/panier moyen estimé du groupe est de 50 €/);
+ assert.match(html,/Éléments qui fondent ce profil/);
  assert.match(html,/persona-card-visual/);
  assert.match(html,/personas\/(women|men)[123]\.png/);
  assert.doesNotMatch(html,/acheté à manger sur place \? : Oui/i);
@@ -54,11 +56,11 @@ test('les profils globaux et communautaires découlent des réponses et gardent 
  assert.match(html,/Trop de monde dans les allées/);
  assert.doesNotMatch(html,/Non publié/);
  assert.match(html,/réponses regroupées/);
- const edited=personasMarkup(rows,true,{canEdit:true,overrides:{'global-1':'Persona réécrit à la main.'},deleted:new Set(['global-2']),editing:'global-1'});
+ const edited=personasMarkup(rows,true,{canEdit:true,overrides:{'community-basket-1':'Persona réécrit à la main.'},deleted:new Set(['community-basket-2']),editing:'community-basket-1'});
  assert.match(edited,/Persona réécrit à la main/);
- assert.match(edited,/data-persona-save="global-1"/);
- assert.match(edited,/data-persona-delete="global-1"/);
- assert.doesNotMatch(edited,/data-persona-id="global-2"/);
+ assert.match(edited,/data-persona-save="community-basket-1"/);
+ assert.match(edited,/data-persona-delete="community-basket-1"/);
+ assert.doesNotMatch(edited,/data-persona-id="community-basket-2"/);
 });
 
 test('ne fabrique pas les profils manquants et ignore le filtre communautaire global',()=>{

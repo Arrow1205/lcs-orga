@@ -114,3 +114,9 @@ animation contient un nom, des heures de début et fin, un responsable issu
 des Réglages, un partenaire facultatif, un prestataire libre et un commentaire.
 Les créneaux simultanés sont disposés côte à côte. Sans migration, l’onglet
 affiche les instructions d’activation et les autres pages restent disponibles.
+
+
+### Analyse IA des personas (optionnelle)
+Le dashboard calcule les KPI et construit les profils sur les réponses disponibles, sans IA. Le bouton « Approfondir avec l’IA » apparaît lorsque Vercel possède `FEEDBACK_AI_PROVIDER` (`openai` ou `gemini`), `FEEDBACK_AI_MODEL` (un modèle compatible avec la sortie JSON structurée), et `OPENAI_API_KEY` ou `GEMINI_API_KEY`. Redéployer après configuration. Ces secrets restent côté serveur, sans préfixe `VITE_`.
+
+Chaque clic relit les réponses autorisées via la session Supabase de l’utilisateur. L’IA reçoit des agrégats et des verbatims utiles, sans colonnes d’identité ; emails et téléphones présents dans les verbatims sont masqués. L’appel est payant auprès du fournisseur choisi. Les catégories, effectifs, calculs et sources restent déterministes ; l’IA rédige seulement les analyses, marquées « à relire avec les sources ». Aucune migration SQL nécessaire.
