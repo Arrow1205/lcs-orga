@@ -84,7 +84,7 @@ test('la V1 en ligne sauvegarde vers le backend et affiche les pièces jointes d
  exhibitor.elements.amount.value='125';exhibitor.elements.last.value='Test';exhibitor.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));
  const created=api.getState().exhibitors.at(-1);assert.equal(created.amount,125);assert.equal(created.tables,3);
  document.querySelector('[data-row-edit="exhibitors:'+created.id+'"]').click();exhibitor=document.getElementById('editForm');assert.equal(exhibitor.elements.amount.value,'125');
- exhibitor.elements.vendorType.value='Partenaire';exhibitor.elements.vendorType.dispatchEvent(new Event('change',{bubbles:true}));assert.equal(exhibitor.elements.amount.value,'300');
+ exhibitor.elements.vendorType.value='Partenaire';exhibitor.elements.vendorType.dispatchEvent(new Event('change',{bubbles:true}));assert.equal(exhibitor.elements.amount.value,'1500');
  exhibitor.elements.vendorType.value='Artiste';exhibitor.elements.vendorType.dispatchEvent(new Event('change',{bubbles:true}));assert.equal(exhibitor.elements.amount.value,'75');document.querySelector('.close').click();
  document.querySelector('[data-view="settings"]').click();assert.ok(document.querySelector('#accountSettings'));assert.ok(document.querySelector('#membersSettings'));assert.equal(document.querySelector('#ownerForm'),null);assert.match(document.getElementById('content').textContent,/Membres et responsables/);assert.equal(document.querySelector('[data-salon-date]'),null);assert.ok(!document.querySelector('#refreshCloud'));assert.ok(!document.querySelector('.side-bottom'));
  dom.window.close();

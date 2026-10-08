@@ -130,3 +130,13 @@ La case « Simulation 2026 », disponible dans tous les onglets Feedback de 2026
 Exécuter `supabase/migrations/017_backlog_profiles.sql` après 016, puis recharger l’application et renseigner le prénom de chaque membre dans Réglages → Membres et responsables. Les responsables sont désormais proposés depuis les comptes actifs ; les anciens noms et attributions restent conservés sur les fiches. Les tâches sont liées aux identifiants des comptes, les prénoms sont uniquement leur libellé. Les réalisations et commentaires sont contrôlés côté serveur (compte connecté, horodatage, prénom associé).
 
 Les cartes sont compactes par défaut, sans menu de déplacement. Glisser-déposer déplace les cartes et trie les colonnes. Hors Backlog, les onglets À faire / En cours / Terminé filtrent les cartes sans modifier leur statut. Chaque colonne affiche le total, les retards en rouge et les réalisations en vert. Le statut, la priorité (! / !!!), l’échéance et le nombre de commentaires restent visibles. La couleur d’alerte des tâches en retard se règle dans Réglages ; une échéance n’est en retard qu’à partir du lendemain, heure de Paris.
+
+### Import et création des exposants
+
+La saisie et l’import partagent les champs type (Pro, Particulier, Partenaire, Artiste), nom, prénom, société/pseudo, téléphone, email et nombre de tables. La valeur interne `Collectionneur` reste compatible avec les anciennes fiches et s’affiche comme « Particulier ».
+
+Les colonnes `Type`, `Nom`, `Prénom`, `Société`, `Téléphone`, `eMail` et `Nbre TABLES ?` sont reconnues. `Type` prévaut sur `Tu es un(e)` ; cette seconde colonne sert de complément lorsque le type principal manque. Les exports HelloAsso et le filtrage des billets de tables restent disponibles, sans exiger de référence commande/billet pour les listes simples.
+
+Pro, particulier et artiste : tarif de la page **Le Salon** × nombre de tables (une par défaut). Exposant partenaire : forfait `settings.exhibitorPartnerPrice`, 1 500 € par défaut, configurable dans Le Salon. Ce forfait est indépendant des tarifs table/m² de la page Partenaires. Le montant source CSV est conservé pour référence ; il ne remplace pas le calcul. Une correction manuelle du montant est conservée lors du réimport, ainsi que les choix, la zone et les commentaires. Le réimport rapproche les références HelloAsso ou l’identité (nom/prénom, email, société/pseudo). Les identités ambiguës sont ignorées et signalées plutôt que fusionnées.
+
+**Aucune migration SQL nécessaire pour cette modification** : les champs sont déjà enregistrés dans les fiches JSON de `crm_records`. Les montants des fiches existantes ne sont pas recalculés à l’ouverture.
