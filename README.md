@@ -151,3 +151,10 @@ Les montants automatiques suivent les tarifs actuels du Salon dans les listes, l
 Le Bilan ajoute une ligne source par exposant hors annulation et par partenaire engagé (Accord, Confirmé, Validé, Terminé ou Payé) dans « Tables / Stands ». Les prospects et partenaires refusés sont exclus. Les lignes suivent les montants des fiches et ne sont pas ajoutées plusieurs fois lors des rafraîchissements. Les reclassements manuels restent possibles. Le total des partenaires reprend les mêmes statuts. Les trois KPI financiers de la Vue d’ensemble et leur détail utilisent exclusivement les lignes du Bilan, dont les saisies manuelles, avec des calculs en centimes.
 
 Aucune nouvelle migration SQL : ces calculs sont dérivés des tables existantes. La migration `004_bilan.sql` reste nécessaire si le Bilan n’a jamais été activé.
+
+
+### Bilan regroupé et implantation
+
+Le Bilan affiche une seule ligne **Tables / Stands** reprenant le total de la page Exposants, et une seule ligne **Partenaires** dans la rubrique Partenaires, reprenant son total. Les anciennes lignes de reclassement par fiche restent enregistrées mais ne sont plus comptées séparément. Chaque total reste synchronisé avec ses sources et peut être reclassé. Les boutons ouvrent les pages source.
+
+Les KPI d’implantation prennent la zone affectée en priorité (identifiant, nom ou alias Football/Soccer et Sports US). Sans zone valide, les tables sont repérées par communauté et signalées **à affecter**. Elles sont distinguées des tables effectivement affectées. Les annulations sont exclues et les tables sans zone ni communauté reconnue sont signalées séparément. Une capacité nulle affiche un tiret plutôt qu’un pourcentage fictif. **Aucun nouveau SQL nécessaire.**
