@@ -97,6 +97,10 @@
     {
       "source": "/mur-echange",
       "destination": "/index.html"
+    },
+    {
+      "source": "/vip",
+      "destination": "/index.html"
     }
   ],
   "functions": {
