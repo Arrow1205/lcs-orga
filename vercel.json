@@ -101,6 +101,10 @@
     {
       "source": "/vip",
       "destination": "/index.html"
+    },
+    {
+      "source": "/sac-vip",
+      "destination": "/index.html"
     }
   ],
   "functions": {
