@@ -441,3 +441,7 @@ button,a,input,select,textarea{touch-action:manipulation}
 #mobileToggle{color:var(--nav-accent,#1303E3)}
 .nav-group[open] summary .notification-pin{transform:none}
 [data-press-form]{display:grid;gap:16px}[data-press-form]>label{display:grid;gap:8px}
+
+.bundle-stock{display:flex;gap:16px;align-items:center;justify-content:space-between;margin:18px 0}.bundle-stock label{display:grid;gap:6px;max-width:120px}.bundle-card>.form-grid{margin:16px 0}.bundle-assignments{margin-top:16px}.bundle-create{flex-wrap:wrap}.bundle-create label{min-width:140px}.bundle-create input{width:100%}
+.vipbag-grid{grid-template-columns:repeat(5,minmax(0,1fr))}@media(max-width:1500px){.vipbag-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:1250px){.vipbag-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.vipbag-grid{grid-template-columns:1fr}}
+.bundle-stock input{width:100%;border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:8px;padding:9px;font:inherit}
