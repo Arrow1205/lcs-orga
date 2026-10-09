@@ -1,13 +1,14 @@
 import {participationTotals} from './participation.js';
 export const defaultCategories=[{id:'expense-invoices',side:'expense',title:'Factures payées'},{id:'expense-hall',side:'expense',title:'Location de salle'},{id:'expense-other',side:'expense',title:'Autres dépenses'},{id:'sale-tickets',side:'sale',title:'Billetterie'},{id:'sale-tables',side:'sale',title:'Tables / Stands'},{id:'sale-partners',side:'sale',title:'Partenaires'},{id:'sale-other',side:'sale',title:'Ventes'}];
 export const cents=value=>Math.round((Number(String(value??0).replace(',','.'))||0)*100);
+export const hallRentalAmount=db=>Math.max(0,Number(db.settings?.hallRental??db.forecast2027?.hallRental)||0);
 export function bilanData(db){
  const categories=[...defaultCategories,...(db.ledger_categories||[])];
  const assignments=new Map((db.ledger_entries||[]).filter(x=>x.sourceId).map(x=>[x.sourceId,x]));
  const rows=(db.ledger_entries||[]).filter(x=>!x.sourceId).map(x=>({...x,amountCents:Math.max(0,Number(x.amountCents)||0)}));
  for(const invoice of db.invoices||[]){if(invoice.tag!=='Facture'||invoice.status!=='Payé')continue;const a=assignments.get(invoice.id);rows.push({id:'invoice:'+invoice.id,sourceId:invoice.id,title:invoice.title||invoice.fileName||'Facture',side:'expense',categoryId:a?.categoryId||'expense-invoices',amountCents:cents(invoice.amount),order:a?.order??0});}
  const derived=(sourceId,title,side,categoryId,amount,sourceKind)=>{const amountCents=cents(amount),a=assignments.get(sourceId);if(amountCents>0&&!a?.excluded)rows.push({id:'auto:'+sourceId,sourceId,title,side,categoryId:a?.categoryId||categoryId,amountCents,order:a?.order??0,sourceKind});};
- derived('hall-rental','Location de salle','expense','expense-hall',db.forecast2027?.hallRental,'hall');
+ derived('hall-rental','Location de salle','expense','expense-hall',hallRentalAmount(db),'hall');
  for(const [key,label] of [['general','Entrée'],['vip','Pack VIP'],['early','Early access']])derived('ticket:'+key,label+' · volume estimé','sale','sale-tickets',(Number(db.settings?.[key+'Price'])||0)*(Number(db.settings?.[key+'Quantity'])||0),'ticket');
  const participation=participationTotals(db);
  derived('exhibitors-total','Tables / Stands','sale','sale-tables',participation.exhibitors,'exhibitors-total');
