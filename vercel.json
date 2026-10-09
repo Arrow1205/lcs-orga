@@ -105,6 +105,10 @@
     {
       "source": "/sac-vip",
       "destination": "/index.html"
+    },
+    {
+      "source": "/presse",
+      "destination": "/index.html"
     }
   ],
   "functions": {
