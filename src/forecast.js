@@ -2,3 +2,5 @@ export function forecastPartnerAmount(row,forecast){const num=x=>Math.max(0,Numb
 export function forecastTicketLine(f,key){const num=x=>Math.max(0,Number(x)||0),legacy=num(f[key]),price=num(f[key+'Price']??legacy),quantity=Math.floor(num(f[key+'Quantity']??(legacy>0?1:0)));return {price,quantity,amount:Math.round(price*100)*quantity/100}}
 
 export function forecastHallSelection(f){const options=f.hallOptions||[],index=options.findIndex(x=>x.id===f.selectedHallId),row=options[index];return {amount:row?Math.max(0,Math.round((Number(row.amount)||0)*100)/100):0,label:row?'Location de salle · Option '+(index+1)+(row.name?' · '+row.name:''):'Location de salle · Aucune option sélectionnée'}}
+
+export function forecastTableCounts(f){const count=v=>{const n=Number(v);return Number.isFinite(n)?Math.max(0,Math.floor(n)):0},pro=count(f.proTables),privateTables=count(f.collectorTables),partners=(f.partnerLines||[]).reduce((n,x)=>n+(x.tablesEnabled?count(x.tables):0),0)+(f.extraRevenue||[]).reduce((n,x)=>n+(x.kind==='Table'?count(x.quantity):0),0),total=count(f.totalTables),used=pro+privateTables+partners;return {total,pro,privateTables,partners,used,remaining:total-used}}
