@@ -1,7 +1,7 @@
 import {participationTotals,partnerRevenue,engagedPartner} from './participation.js';
 export const defaultCategories=[{id:'expense-invoices',side:'expense',title:'Factures payées'},{id:'expense-hall',side:'expense',title:'Location de salle'},{id:'expense-other',side:'expense',title:'Autres dépenses'},{id:'sale-tickets',side:'sale',title:'Billetterie'},{id:'sale-tables',side:'sale',title:'Tables / Stands'},{id:'sale-partners',side:'sale',title:'Partenaires'},{id:'sale-other',side:'sale',title:'Ventes'}];
 export const cents=value=>Math.round((Number(String(value??0).replace(',','.'))||0)*100);
-export const hallRentalAmount=db=>Math.max(0,Number(db.settings?.hallRental??db.forecast2027?.hallRental)||0);
+export const hallRentalAmount=db=>Math.max(0,Number(db.settings?.hallRental)||0);
 export function bilanData(db){
  const categories=[...defaultCategories,...(db.ledger_categories||[])];
  const assignments=new Map((db.ledger_entries||[]).filter(x=>x.sourceId).map(x=>[x.sourceId,x]));

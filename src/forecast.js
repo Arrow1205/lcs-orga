@@ -1,0 +1,1 @@
+export function forecastPartnerAmount(row,forecast){const num=x=>Math.max(0,Number(x)||0),cents=x=>Math.round(num(x)*100);return ((row.areaEnabled?Math.round(num(row.area)*cents(forecast.priceSqm)):0)+(row.tablesEnabled?Math.floor(num(row.tables))*cents(forecast.partnerTablePrice):0))/100}

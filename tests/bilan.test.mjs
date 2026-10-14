@@ -11,7 +11,7 @@ test('bilan : factures payées uniques, centimes, BFR et reclassement',()=>{
  db.invoices[0].status='Non payé';assert.equal(bilanData(db).expenses,0);
 });
 test('bilan : location, billets estimés et partenaires terminés suivent leurs sources',()=>{
- const db={settings:{ncBalance:50,generalPrice:12,generalQuantity:100,vipPrice:30,vipQuantity:2,partnerTablePrice:250,partnerSqmPrice:60},forecast2027:{hallRental:900},ledger_categories:[],ledger_entries:[],invoices:[],partners:[{id:'done',company:'Studio',status:'Terminé',unit:'Table',quantity:2},{id:'waiting',company:'Autre',status:'En discussion',quantity:4},{id:'forced',status:'Terminé',amountForced:true,amount:150,unit:'m²',quantity:20}]};
+ const db={settings:{hallRental:900,ncBalance:50,generalPrice:12,generalQuantity:100,vipPrice:30,vipQuantity:2,partnerTablePrice:250,partnerSqmPrice:60},forecast2027:{hallRental:900},ledger_categories:[],ledger_entries:[],invoices:[],partners:[{id:'done',company:'Studio',status:'Terminé',unit:'Table',quantity:2},{id:'waiting',company:'Autre',status:'En discussion',quantity:4},{id:'forced',status:'Terminé',amountForced:true,amount:150,unit:'m²',quantity:20}]};
  let data=bilanData(db);
  assert.equal(data.expenses,90000);assert.equal(data.sales,191000);assert.equal(data.balance,106000);
  assert.equal(data.rows.filter(x=>x.sourceKind==='partners-total').length,1);
