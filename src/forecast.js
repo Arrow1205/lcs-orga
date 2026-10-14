@@ -1,1 +1,2 @@
 export function forecastPartnerAmount(row,forecast){const num=x=>Math.max(0,Number(x)||0),cents=x=>Math.round(num(x)*100);return ((row.areaEnabled?Math.round(num(row.area)*cents(forecast.priceSqm)):0)+(row.tablesEnabled?Math.floor(num(row.tables))*cents(forecast.partnerTablePrice):0))/100}
+export function forecastTicketLine(f,key){const num=x=>Math.max(0,Number(x)||0),legacy=num(f[key]),price=num(f[key+'Price']??legacy),quantity=Math.floor(num(f[key+'Quantity']??(legacy>0?1:0)));return {price,quantity,amount:Math.round(price*100)*quantity/100}}
