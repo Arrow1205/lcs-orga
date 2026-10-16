@@ -471,3 +471,16 @@ button,a,input,select,textarea{touch-action:manipulation}
 /* Forecast cards keep their own height when a neighboring accordion is open. */
 .content .forecast-accordion-grid.grid2{align-items:start}
 .content .forecast-accordion-grid.grid2>.panel.forecast-accordion{height:auto;min-height:0;align-self:start}
+
+/* Forecast rows and independent two-column masonry cards. */
+.content .forecast-accordion-grid.grid2{grid-auto-rows:1px;grid-auto-flow:row dense;row-gap:12px;column-gap:18px}
+.forecast-page .forecast-accordion>summary h2{font-size:20px}.forecast-page .forecast-revenue .ticket-total,.forecast-page [data-forecast-accordion="Dépenses"] .ticket-total,.forecast-page [data-forecast-accordion="Dépenses"] label,.forecast-page .forecast-extra,.forecast-page .forecast-line{font-size:14px}
+.forecast-page :is(.ticket-total,.forecast-ticket-row,.forecast-table-row,.forecast-hall-row,.forecast-partner-row,.forecast-extra,.forecast-line,.forecast-option-config-row,.forecast-partner-option){background:#f3f4f6;border:0;border-radius:9px;padding:12px;margin:10px 0}
+.dark .forecast-page :is(.ticket-total,.forecast-ticket-row,.forecast-table-row,.forecast-hall-row,.forecast-partner-row,.forecast-extra,.forecast-line,.forecast-option-config-row,.forecast-partner-option){background:#252a3b}
+.forecast-page .forecast-config>.form-grid{display:block}.forecast-page .forecast-config>.form-grid>label{display:grid;grid-template-columns:minmax(0,1fr) 110px;align-items:center;gap:12px;background:#f3f4f6;border-radius:9px;padding:12px;margin:10px 0}.dark .forecast-page .forecast-config>.form-grid>label{background:#252a3b}
+.forecast-page .forecast-ticket-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.forecast-page .forecast-ticket-row>strong:first-child{grid-column:1;grid-row:1}.forecast-page .forecast-ticket-row>strong:last-child{grid-column:2;grid-row:1;text-align:right}.forecast-page .forecast-ticket-row>label{grid-row:2}
+.forecast-page .forecast-hall-row{grid-template-columns:auto minmax(0,1fr) minmax(75px,.65fr) auto;gap:8px}.forecast-page .forecast-hall-row>label:nth-child(2){grid-column:auto}.forecast-page .forecast-hall-row .forecast-check{font-size:11px;white-space:nowrap}.forecast-page .forecast-hall-row input:not([type=checkbox]){width:100%;min-width:0;padding:8px}
+.forecast-page .forecast-partner-row>label:first-child{grid-column:1;grid-row:1}.forecast-page .forecast-partner-row>.forecast-partner-amount{grid-column:2;grid-row:1;align-self:center;text-align:right}.forecast-page [data-forecast-partner-delete]{grid-column:1/-1;width:100%;margin-top:8px}
+@media(max-width:800px){.content .forecast-accordion-grid.grid2{grid-auto-rows:auto;grid-auto-flow:row}.forecast-accordion{grid-row-end:auto!important}}
+@media(max-width:420px){.forecast-page .forecast-hall-row{grid-template-columns:auto minmax(0,1fr) 65px auto;gap:5px;padding:8px}.forecast-page .forecast-hall-row .forecast-check{font-size:10px}.forecast-page .forecast-hall-row button{padding:7px}.forecast-page .forecast-accordion>summary{gap:8px}}
+.forecast-page .forecast-partner-config>label{background:#f3f4f6;padding:12px;border-radius:9px}.dark .forecast-page .forecast-partner-config>label{background:#252a3b}
