@@ -1,4 +1,4 @@
-import {visitorFeedbackMarkup} from './visitor-feedback.js';
+import {visitorFeedbackMarkup,matchesCommunity} from './visitor-feedback.js';
 import {activeQuestions} from './survey-schema.js';
 import {vipQuestions} from './vip-schema.js';
 
@@ -21,7 +21,8 @@ export function vipStats(rows,definitions=[]){
  const ratio=(key,value)=>{const entries=distributions[key],total=entries.reduce((sum,[,n])=>sum+n,0);return total?Math.round((entries.find(([v])=>v===value)?.[1]||0)/total*100):null};
  return {total:vipRows.length,bagCount:bags.length,bagAverage:bags.length?bags.reduce((a,b)=>a+b,0)/bags.length:null,distributions,goodValue:ratio('vip_price','Bon rapport qualité/prix'),packInterest:ratio('vip_community_pack','Oui')};
 }
-export function vipFeedbackMarkup(rows,definitions=[]){
+export function vipFeedbackMarkup(rows,definitions=[],{community=''}={}){
+ rows=rows.filter(r=>matchesCommunity({...r,questions:r.questions?.length?r.questions:definitions},community));
  const s=vipStats(rows,definitions),pct=value=>value===null?'—':value+' %';
  const current=definitions.length?definitions:rows.find(r=>r.type==='vip'&&r.questions?.length)?.questions||[];
  const tag=key=>{const index=current.findIndex(q=>q.key===key);return index>=0?`Q${index+1} · `:''};
@@ -31,5 +32,5 @@ export function vipFeedbackMarkup(rows,definitions=[]){
   return `<section class="panel visitor-chart"><div class="panel-head"><h2>${esc(tag(key)+q.label)}</h2><small>${total} réponse(s)</small></div>${entries.length?entries.map(([label,count])=>`<div class="visitor-bar-row"><span>${esc(label)}</span><div class="visitor-bar-track"><i style="width:${count/total*100}%"></i></div><strong>${count} <small>· ${Math.round(count/total*100)} %</small></strong></div>`).join(''):'<p class="sub">Aucune réponse pour le moment.</p>'}</section>`;
  };
  const premium=`<div class="visitor-dashboard vip-dashboard"><div class="visitor-kpis">${kpi('vip_bag','Qualité du sac VIP',s.bagAverage===null?'—':s.bagAverage.toFixed(1).replace('.',',')+'/10',s.bagCount+' note(s) · VIP uniquement')}${kpi('vip_price','Bon rapport qualité/prix',pct(s.goodValue),'parmi les réponses à cette question')}${kpi('vip_community_pack','Intérêt pour un pack par communauté',pct(s.packInterest),'parmi les réponses à cette question')}</div><div class="visitor-bento">${['vip_ticket','vip_price','vip_duration','vip_community_pack'].map(chart).join('')}</div></div>`;
- return visitorFeedbackMarkup(rows,current,{type:'vip',afterOverview:premium});
+ return visitorFeedbackMarkup(rows,current,{type:'vip',afterOverview:premium,community});
 }

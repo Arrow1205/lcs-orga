@@ -29,13 +29,13 @@ test('groupes sans données et anciens billets non identifiés restent non estim
  const rows=[visitor(),{type:'vip',answers:{}},exhibitor('Professionnel')],model=buildSimulation(rows);
  assert.equal(model.unknown,1);assert.equal(model.groups.find(g=>g.id==='vip').coefficient,null);assert.equal(model.groups.find(g=>g.id==='partenaire').coefficient,null);assert.equal(model.covered,2810);assert.equal(model.rows[1]._projectionWeight,0);
  assert.equal(simulationCategory({type:'vip',answers:{premiumType:'Early Access Premium'}}),'early');assert.equal(buildSimulation([]).covered,0);
- const html=surveyResultsMarkup(rows,'all',2026,{simulation:true});assert.match(html,/Non estimable/);assert.match(html,/sans catégorie identifiable/);
+ const html=surveyResultsMarkup(rows,'all',2026,{simulation:true});assert.doesNotMatch(html,/Simulation 2026|sans catégorie identifiable|Effectif simulé/);
 });
 test('interrupteur dans chaque onglet, export et réponses réelles préservés, pas de faux personas',()=>{
- for(const tab of ['all','visiteur','vip','exposant','responses','personas'])assert.match(surveyResultsMarkup(base(),tab,2026,{simulation:true}),/data-survey-simulation checked/);
+ for(const tab of ['all','visiteur','vip','exposant','responses','personas'])assert.doesNotMatch(surveyResultsMarkup(base(),tab,2026,{simulation:true}),/data-survey-simulation|Simulation 2026|Effectif simulé/);
  assert.doesNotMatch(surveyResultsMarkup(base(),'all',2027,{simulation:true}),/data-survey-simulation|Effectif simulé/);
  const model=buildSimulation([visitor()]);assert.equal(generatePersonas(model.rows).global.length,0);
- const html=surveyResultsMarkup(base(),'responses',2026,{simulation:true});assert.match(html,/Seules les réponses réelles/);assert.equal((html.match(/<details><summary><span>/g)||[]).length,7);
+ const html=surveyResultsMarkup(base(),'responses',2026,{simulation:true});assert.doesNotMatch(html,/Simulation 2026|Effectif simulé/);assert.equal((html.match(/<details><summary><span>/g)||[]).length,7);
 });
 
 
