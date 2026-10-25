@@ -109,6 +109,10 @@
     {
       "source": "/presse",
       "destination": "/index.html"
+    },
+    {
+      "source": "/bureau",
+      "destination": "/index.html"
     }
   ],
   "functions": {
