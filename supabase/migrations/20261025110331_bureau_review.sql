@@ -1,5 +1,12 @@
 -- Bureau interne : aucune réponse publique, aucun impact sur les questionnaires existants.
 begin;
+do $check$
+begin
+ if to_regclass('public.crm_editions') is null or to_regclass('public.crm_members') is null or to_regprocedure('public.crm_has_role(text,text[])') is null then
+  raise exception 'Le schéma CRM attendu est absent ou incomplet dans ce projet Supabase.'
+   using hint='Vérifie le projet utilisé par LCS Orga, puis exécute supabase/diagnostic_bureau.sql. Ne crée pas une table crm_editions vide pour contourner cette vérification.';
+ end if;
+end;$check$;
 create table if not exists public.crm_bureau_forms (
  workspace_id uuid not null, edition_year integer not null,
  version integer not null default 1, questions jsonb not null,

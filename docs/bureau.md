@@ -1,8 +1,8 @@
 # Bureau — bilan post-événement
 
 1. Exécuter entièrement `supabase/migrations/20261025110331_bureau_review.sql` dans le SQL Editor Supabase. Le script est transactionnel et peut être réexécuté. Il ne modifie pas les formulaires existants.
-2. Ouvrir **Feedback → Bureau** dans l’année voulue. La page initialise un lien public aléatoire propre à cette édition.
-3. Copier **Lien public à partager avec le bureau**. La page `/formulaire/bureau.html?code=…` ne demande aucun compte. Chaque navigateur conserve son identifiant de reprise ; utiliser le même navigateur pour continuer un bilan. Six répondants maximum par édition, sans création de réponses fictives.
+2. Ouvrir **Feedback → Bureau** dans l’année voulue. La page affiche directement la synthèse et initialise un lien public aléatoire propre à cette édition.
+3. Copier **Lien public à partager avec le bureau**. La page `/formulaire/bureau.html?code=…` ne demande aucun compte. Le formulaire public reste en mode clair. Chaque navigateur conserve son identifiant de reprise ; utiliser le même navigateur pour continuer un bilan. Six répondants maximum par édition, sans création de réponses fictives.
 4. La synthèse et les contrôles d’administration restent dans le CRM, soumis aux droits existants. Les lecteurs peuvent consulter ; administrateurs et éditeurs peuvent modifier le questionnaire et créer des actions.
 
 ## Réponses et confidentialité
@@ -18,3 +18,7 @@ La note globale est la moyenne des notes 1–5 renseignées. Les choix uniques, 
 Q18 et Q19 demandent un point par ligne. Les compteurs de points forts/faibles comptent ces lignes déclarées, sans inférer des points à partir d’un paragraphe. Les résultats par question détaillent au plus six bilans dans un accordéon.
 
 L’export CSV comprend les questions, réponses, commentaires, libellés historiques, statistiques et actions. Si une sauvegarde est bloquée, l’export propose à la place une copie JSON du brouillon local. Les actions créées depuis une question réutilisent les tâches du Backlog de l’édition : responsable, priorité, échéance, statut et description restent gérés par ce module.
+
+## Erreur « crm_editions does not exist »
+
+Exécuter `supabase/diagnostic_bureau.sql` (lecture seule) pour identifier le schéma installé. Le CRM utilise `public.crm_editions` depuis la migration 003 et sa clôture depuis la migration 008. Vérifier que le SQL Editor cible le même projet que le CRM. Ne pas créer une table vide de remplacement : les éditions et les droits existants doivent être identifiés avant toute correction.
